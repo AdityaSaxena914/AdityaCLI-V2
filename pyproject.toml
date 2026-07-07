@@ -1,0 +1,10 @@
+[project]
+name = "adityacli"
+version = "2.0.0"
+description = "A production-grade local-first AI developer assistant."
+readme = "README.md"
+requires-python = ">=3.12"
+
+authors = [
+    { name = "Aditya Saxena" }
+]
