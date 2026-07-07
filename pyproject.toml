@@ -5,6 +5,15 @@ description = "A production-grade local-first AI developer assistant."
 readme = "README.md"
 requires-python = ">=3.12"
 
+
 authors = [
     { name = "Aditya Saxena" }
 ]
+
+
+dependencies = [
+    "typer>=0.16.0",
+]
+
+[project.scripts]
+adityacli = "adityacli.cli.main:app"
