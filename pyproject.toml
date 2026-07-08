@@ -12,7 +12,7 @@ authors = [
 
 
 dependencies = [
-    "typer>=0.16.0",
+    
 ]
 
 [project.scripts]
