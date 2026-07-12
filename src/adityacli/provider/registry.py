@@ -35,3 +35,16 @@ class ProviderRegistry:
         provider_class = self._providers[name]
 
         return provider_class()
+    
+    def unregister(self, name: str) -> None:
+        """Unregister a provider implementation."""
+
+        if not self.exists(name):
+            raise ValueError(f"Provider '{name}' is not registered.")
+        
+        del self._providers[name]
+
+    def list_providers(self) -> list[str]:
+        """Return all registered provider names."""
+
+        return sorted(self._providers.keys())
