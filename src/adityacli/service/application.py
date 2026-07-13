@@ -6,7 +6,6 @@ from adityacli.provider import (
     LMStudioProvider,
 )
 
-
 class Application:
     """Application runtime."""
     def __init__(self) -> None:
