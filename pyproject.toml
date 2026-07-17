@@ -20,4 +20,4 @@ dependencies = [
 ]
 
 [project.scripts]
-adityacli = "adityacli.cli.main:app"
+aditya = "adityacli.cli.main:main"
