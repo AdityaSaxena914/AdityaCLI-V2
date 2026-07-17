@@ -1,6 +1,13 @@
 import typer
 
+from adityacli.application import Application
 
-def callback() -> None:
-    """Root callback for the AdityaCLI application."""
-    pass
+
+def callback(ctx: typer.Context) -> None:
+    """Initialize the AdityaCLI application."""
+
+    if ctx.obj is None:
+        ctx.obj = {}
+
+    if "application" not in ctx.obj:
+        ctx.obj["application"] = Application()

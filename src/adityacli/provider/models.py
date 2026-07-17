@@ -1,10 +1,17 @@
+from typing import Literal
 from pydantic import BaseModel
 
 
 class ChatMessage(BaseModel):
     """A single message in a conversation."""
 
-    role: str
+    role: Literal[
+        "system",
+        "user",
+        "assistant",
+        "tool",
+        "developer",
+    ]
     content: str
 
 class GenerationConfig(BaseModel):
@@ -24,6 +31,10 @@ class GenerationResponse(BaseModel):
     """A response returned by a provider."""
 
     content: str
+    model: str
+    finish_reason: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 class ModelInfo(BaseModel):
     """Information about a model."""

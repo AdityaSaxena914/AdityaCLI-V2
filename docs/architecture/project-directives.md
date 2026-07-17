@@ -259,9 +259,16 @@ V2.0.0
 * Logging subsystem
 * Global exception subsystem
 
+---
+
 ### Runtime Foundation
 
 * Application runtime foundation
+* Application dependency wiring
+* Runtime manager initialization
+* Runtime registry initialization
+
+---
 
 ### Provider Subsystem
 
@@ -270,8 +277,17 @@ V2.0.0
 * Exceptions
 * Registry
 * Manager
-* LM Studio provider skeleton
+* LM Studio provider implementation
+* Provider lifecycle management
+* Provider initialization
+* Provider health checks
+* Model discovery
+* Model loading
+* Standard response generation
+* Streaming response generation
 * Public API
+
+---
 
 ### Tool Subsystem
 
@@ -283,6 +299,8 @@ V2.0.0
 * Built-in tool skeletons
 * Public API
 
+---
+
 ### Workspace Subsystem
 
 * Models
@@ -291,6 +309,8 @@ V2.0.0
 * Manager
 * Public API
 
+---
+
 ### Session Subsystem
 
 * Models
@@ -298,12 +318,16 @@ V2.0.0
 * Manager
 * Public API
 
+---
+
 ### Mode Subsystem
 
 * Models
 * Exceptions
 * Manager
 * Public API
+
+---
 
 ### Security Subsystem
 
@@ -314,14 +338,21 @@ V2.0.0
 * Manager
 * Public API
 
+---
+
 ### Agent Subsystem
 
 * Models
 * Interface
 * Exceptions
 * Manager
-* Default agent skeleton
+* Default agent implementation
+* Provider integration
+* Standard execution
+* Streaming execution
 * Public API
+
+---
 
 ### MCP Subsystem
 
@@ -342,6 +373,8 @@ V2.0.0
 * Global callback
 * Version command
 * Doctor command
+* Chat command
+* REPL command
 * Rich console
 * Theme system
 * Panels
@@ -353,38 +386,57 @@ V2.0.0
 
 ### Application Wiring
 
-* Application scaffold
+* Application composition root
+* Runtime dependency wiring
+* Provider registration
+* Default provider selection
+* Default model loading
+* Agent registration
 
 ---
 
 ## Current Status
 
-The complete runtime architecture for AdityaCLI V2.0.0 has been established.
+The runtime architecture for AdityaCLI V2.0.0 has been established and the core runtime has been successfully wired together.
 
-All core subsystems now exist in their final architectural locations.
+The CLI, Application Runtime, Agent Runtime, and Provider subsystem are fully integrated.
 
-The CLI foundation has been implemented and is operational.
+A complete end-to-end inference pipeline is operational:
 
-The Application runtime has been scaffolded and is ready for dependency wiring.
+```
+CLI
+↓
+Application Runtime
+↓
+Agent Manager
+↓
+Default Agent
+↓
+Provider Manager
+↓
+LM Studio Provider
+↓
+Local LLM
+```
 
-Current implementations remain intentionally minimal and provide the structural foundation for future versions without requiring architectural refactoring.
+Streaming chat is fully functional through the provider abstraction, validating the provider-independent runtime architecture.
+
+The remaining work focuses on implementing runtime capabilities such as tool execution, MCP integration, and completing the agent execution loop.
 
 ---
 
 ## Next Implementation Phase
 
-The project now transitions from **runtime scaffolding** to **runtime implementation**.
+The project now transitions from **runtime infrastructure** to **runtime capabilities**.
 
 Implementation order:
 
-1. Complete Application wiring
-2. LM Studio provider implementation
-3. Streaming chat
-4. Tool implementations
-5. Agent execution loop
-6. MCP integration
-7. End-to-end integration testing
-8. V2.0.0 release
+1. Tool registration and runtime integration
+2. Tool implementations
+3. Agent tool execution loop
+4. MCP integration
+5. End-to-end integration testing
+6. V2.0.0 release
 
 
 ---

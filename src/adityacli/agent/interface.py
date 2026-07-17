@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
+from collections.abc import Iterator
 from .models import (
     AgentInfo,
     AgentRequest,
@@ -22,4 +22,12 @@ class AgentInterface(ABC):
         request: AgentRequest,
     ) -> AgentResponse:
         """Execute the agent."""
+        ...
+
+    @abstractmethod
+    def execute_stream(
+        self,
+        request: AgentRequest,
+    ) -> Iterator[str]:
+        """Execute the agent with streaming."""
         ...

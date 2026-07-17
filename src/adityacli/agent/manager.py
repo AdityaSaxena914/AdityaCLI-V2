@@ -6,7 +6,7 @@ from adityacli.security import SecurityManager
 from adityacli.session import SessionManager
 from adityacli.tool import ToolManager
 from adityacli.workspace import WorkspaceManager
-
+from collections.abc import Iterator
 from .interface import AgentInterface
 from .models import (
     AgentRequest,
@@ -60,3 +60,14 @@ class AgentManager:
             raise RuntimeError("No active agent.")
 
         return self._agent.execute(request)
+    
+    def execute_stream(
+        self,
+        request: AgentRequest,
+    ) -> Iterator[str]:
+        """Execute the active agent with streaming."""
+
+        if self._agent is None:
+            raise RuntimeError("No active agent.")
+
+        return self._agent.execute_stream(request)

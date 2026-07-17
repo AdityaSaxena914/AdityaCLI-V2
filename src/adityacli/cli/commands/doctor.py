@@ -1,12 +1,19 @@
 import platform
 from pathlib import Path
 
-from adityacli.cli.console import console
-from adityacli.cli.ui.panels import info_panel
-from adityacli.cli.ui.tables import create_table
+import typer
+
+from adityacli.application import Application
+from adityacli.cli import console
+from adityacli.cli.ui import info_panel
+from adityacli.cli.ui import create_table
 
 
-def doctor() -> None:
+def doctor(ctx: typer.Context) -> None:
+    """Display environment and application diagnostics."""
+
+    app: Application = ctx.obj["application"]
+
     console.print(
         info_panel(
             "Environment diagnostics",
@@ -33,6 +40,16 @@ def doctor() -> None:
     table.add_row(
         "Directory",
         str(Path.cwd()),
+    )
+
+    table.add_row(
+        "Application",
+        "Initialized",
+    )
+
+    table.add_row(
+        "Ready",
+        "Yes" if app.ready else "No",
     )
 
     console.print(table)

@@ -1,4 +1,4 @@
-from adityacli.cli.app import app
+from adityacli.cli import app
 
 
 def main() -> None:
