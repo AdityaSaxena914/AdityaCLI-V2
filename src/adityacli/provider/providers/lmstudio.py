@@ -1,15 +1,33 @@
 from __future__ import annotations
+
 import json
-from openai import OpenAI
-from typing import cast, Any
-from openai.types.chat import ChatCompletionMessageParam
 from collections.abc import Iterator
-from ..interface import ProviderInterface
+from typing import Any, cast
+
+from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
+
 from adityacli.config import settings
-from adityacli.contracts.generation import GenerationRequest, GenerationResponse
-from adityacli.contracts.provider import ProviderInfo, ModelInfo
-from adityacli.contracts.tools import ToolCall, ToolDefinition
 from adityacli.contracts.chat import ChatMessage
+from adityacli.contracts.generation import (
+    GenerationRequest,
+    GenerationResponse,
+)
+from adityacli.contracts.provider import (
+    ModelInfo,
+    ProviderInfo,
+)
+from adityacli.contracts.tools import (
+    ToolCall,
+    ToolDefinition,
+)
+
+from ..exceptions import (
+    InvalidProviderResponseError,
+    ModelNotFoundError,
+    ProviderOfflineError,
+)
+from ..interface import ProviderInterface
 
 
 
@@ -19,10 +37,13 @@ class LMStudioProvider(ProviderInterface):
 
     def __init__(self) -> None:
         self._base_url = settings.lmstudio.base_url
-        self._model = settings.provider.default_model
         self._timeout = settings.lmstudio.timeout
 
         self._client: OpenAI | None = None
+
+        self._model: str | None = None
+        self._model_info: ModelInfo | None = None
+
         self._initialized = False
 
 
@@ -39,6 +60,8 @@ class LMStudioProvider(ProviderInterface):
     
 
     def health_check(self) -> bool:
+        """Return whether the provider is reachable."""
+
         if self._client is None:
             return False
 
@@ -50,29 +73,66 @@ class LMStudioProvider(ProviderInterface):
     
 
     def provider_info(self) -> ProviderInfo:
+        """Return provider information."""
+
         return ProviderInfo(
             name="LM Studio",
             endpoint=self._base_url,
+            online=self.health_check(),
         )
     
 
     def list_models(self) -> list[ModelInfo]:
+        """Return all available models."""
+
         if self._client is None:
-            raise RuntimeError("Provider not initialized.")
+            raise ProviderOfflineError("Provider Offline")
 
-        models = self._client.models.list()
+        try:
+            models = self._client.models.list()
 
-        return [
-            ModelInfo(
-                id=model.id,
-                name=model.id,
-            )
-            for model in models.data
-        ]
+            return [
+                ModelInfo(
+                    id=model.id,
+                    name=model.id,
+                    context_window=0,
+                    quantization=None,
+                    estimated_ram_mb=None,
+                    supports_streaming=True,
+                    supports_tools=True,
+                    supports_grammar=False,
+                )
+                for model in models.data
+            ]
+
+        except Exception as exc:
+            raise InvalidProviderResponseError("Invalid Response") from exc
     
 
+    def model_info(self) -> ModelInfo:
+        """Return information about the active model."""
+
+        if self._model_info is None:
+            raise ModelNotFoundError("Model not found")
+
+        return self._model_info
+
+    
     def load_model(self, model: str) -> None:
+        """Load a model."""
+
         self._model = model
+
+        self._model_info = ModelInfo(
+            id=model,
+            name=model,
+            context_window=0,
+            quantization=None,
+            estimated_ram_mb=None,
+            supports_streaming=True,
+            supports_tools=True,
+            supports_grammar=False,
+        )
 
 
     def generate(
@@ -82,7 +142,7 @@ class LMStudioProvider(ProviderInterface):
         """Generate a complete response."""
 
         if self._client is None:
-            raise RuntimeError("Provider not initialized.")
+            raise ProviderOfflineError("Provider is Offline.")
 
         kwargs: dict[str, Any] = {
             "model": self._model,
@@ -95,12 +155,13 @@ class LMStudioProvider(ProviderInterface):
         if request.tools:
             kwargs["tools"] = self._build_tools(request.tools)
 
-        response = self._client.chat.completions.create(**kwargs)
+        try:
+            response = self._client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            raise InvalidProviderResponseError("invalid Provider Response.") from exc
 
         message = response.choices[0].message
 
-        print("CONTENT:", message.content)
-        print("TOOL CALLS:", message.tool_calls)
 
         content = message.content or ""
 
@@ -108,11 +169,16 @@ class LMStudioProvider(ProviderInterface):
 
         if message.tool_calls:
             for call in message.tool_calls:
+                try:
+                    arguments = json.loads(call.function.arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+
                 tool_calls.append(
                     ToolCall(
                         id=call.id,
                         name=call.function.name,
-                        arguments = json.loads(call.function.arguments),
+                        arguments=arguments,
                     )
                 )
 
@@ -136,7 +202,7 @@ class LMStudioProvider(ProviderInterface):
         """Generate a streamed response."""
 
         if self._client is None:
-            raise RuntimeError("Provider not initialized.")
+            raise ProviderOfflineError("Provider is Offline.")
 
         kwargs: dict[str, Any] = {
             "model": self._model,
@@ -149,8 +215,11 @@ class LMStudioProvider(ProviderInterface):
         if request.tools:
             kwargs["tools"] = self._build_tools(request.tools)
 
-        stream = self._client.chat.completions.create(**kwargs)
-
+        try:
+            stream = self._client.chat.completions.create(**kwargs)
+        except Exception as exc:
+                    raise InvalidProviderResponseError("invalid Provider Response.") from exc
+        
         for chunk in stream:
             delta = chunk.choices[0].delta.content
 
@@ -224,4 +293,8 @@ class LMStudioProvider(ProviderInterface):
         """Shutdown the provider."""
 
         self._client = None
+
+        self._model = None
+        self._model_info = None
+
         self._initialized = False

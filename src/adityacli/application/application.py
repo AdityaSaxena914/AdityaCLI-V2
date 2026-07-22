@@ -4,7 +4,6 @@ from adityacli.agent import AgentManager, DefaultAgent
 from adityacli.config import settings
 from adityacli.logging import get_logger
 from adityacli.mcp import MCPManager, MCPRegistry
-from adityacli.mode import ModeManager
 from adityacli.provider import ProviderManager, ProviderRegistry, LMStudioProvider
 from adityacli.security import SecurityManager
 from adityacli.session import SessionManager
@@ -78,7 +77,6 @@ class Application:
         #
         self.workspace_manager = WorkspaceManager()
         self.session_manager = SessionManager()
-        self.mode_manager = ModeManager()
         self.security_manager = SecurityManager()
 
         self.provider_manager = ProviderManager(
@@ -106,7 +104,6 @@ class Application:
             tool_manager=self.tool_manager,
             workspace_manager=self.workspace_manager,
             session_manager=self.session_manager,
-            mode_manager=self.mode_manager,
             security_manager=self.security_manager,
         )
 
