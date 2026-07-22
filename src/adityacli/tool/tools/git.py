@@ -1,23 +1,22 @@
 from __future__ import annotations
-
 from ..interface import ToolInterface
-from ..models import (
+from adityacli.contracts.tools import (
     ToolDefinition,
-    ToolParameter,
-    ToolRequest,
-    ToolResult,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter
 )
 
 
 class GitTool(ToolInterface):
-    """Read a file from the workspace."""
+    """Check git branch status."""
 
     def definition(self) -> ToolDefinition:
         """Return the tool definition."""
 
         return ToolDefinition(
-            name="edit_file",
-            description="Edit content to a file.",
+            name="git_status",
+            description="Check git branch status.",
             parameters=[
                 ToolParameter(
                     name="command",
@@ -28,7 +27,7 @@ class GitTool(ToolInterface):
             ],
         )
     
-    def execute(self, request: ToolRequest) -> ToolResult:
+    def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
         raise NotImplementedError

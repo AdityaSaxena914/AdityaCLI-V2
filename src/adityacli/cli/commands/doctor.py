@@ -4,7 +4,7 @@ from pathlib import Path
 import typer
 
 from adityacli.application import Application
-from adityacli.cli import console
+from adityacli.cli.console import console
 from adityacli.cli.ui import info_panel
 from adityacli.cli.ui import create_table
 

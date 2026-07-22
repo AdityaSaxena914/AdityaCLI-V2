@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
-from .models import (
+from adityacli.contracts.tools import (
     ToolDefinition,
-    ToolRequest,
-    ToolResult,
+    ToolExecutionRequest,
+    ToolExecutionResult
 )
 
 class ToolInterface(ABC):
@@ -18,6 +17,6 @@ class ToolInterface(ABC):
     @abstractmethod
     def execute(
         self,
-        request: ToolRequest,
-    ) -> ToolResult:
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
         """Execute the tool."""

@@ -1,16 +1,15 @@
 from __future__ import annotations
-
 from ..interface import ToolInterface
-from ..models import (
+from adityacli.contracts.tools import (
     ToolDefinition,
-    ToolParameter,
-    ToolRequest,
-    ToolResult,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter
 )
 
 
 class EditFileTool(ToolInterface):
-    """Read a file from the workspace."""
+    """edit a file in the workspace."""
 
     def definition(self) -> ToolDefinition:
         """Return the tool definition."""
@@ -40,7 +39,7 @@ class EditFileTool(ToolInterface):
             ],
         )
     
-    def execute(self, request: ToolRequest) -> ToolResult:
+    def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
         raise NotImplementedError

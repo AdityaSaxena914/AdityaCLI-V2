@@ -3,12 +3,6 @@ from .interface import ToolInterface
 from .manager import ToolManager
 from .registry import ToolRegistry
 
-from .models import (
-    ToolDefinition,
-    ToolParameter,
-    ToolRequest,
-    ToolResult,
-)
 
 from .tools.read_file import ReadFileTool
 from .tools.write_file import WriteFileTool
@@ -21,10 +15,6 @@ __all__ = [
     "ToolInterface",
     "ToolManager",
     "ToolRegistry",
-    "ToolDefinition",
-    "ToolParameter",
-    "ToolRequest",
-    "ToolResult",
     "ReadFileTool",
     "WriteFileTool",
     "EditFileTool",

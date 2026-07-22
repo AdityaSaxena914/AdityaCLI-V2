@@ -1,11 +1,8 @@
 from __future__ import annotations
-
-from adityacli.provider import (
-    ChatMessage,
-    GenerationConfig,
-    GenerationRequest,
-    ProviderManager,
-)
+from adityacli.contracts.chat import ChatMessage
+from adityacli.contracts.generation import GenerationConfig, GenerationRequest
+from adityacli.contracts.tools import ToolExecutionRequest
+from adityacli.provider import ProviderManager
 from collections.abc import Iterator
 from ..interface import AgentInterface
 from ..models import (
@@ -13,6 +10,7 @@ from ..models import (
     AgentRequest,
     AgentResponse,
 )
+from adityacli.tool.manager import ToolManager
 
 
 class DefaultAgent(AgentInterface):
@@ -21,8 +19,11 @@ class DefaultAgent(AgentInterface):
     def __init__(
         self,
         provider_manager: ProviderManager,
-    ) -> None:
+        tool_manager: ToolManager,
+    ):
         self._provider_manager = provider_manager
+        self._tool_manager = tool_manager
+
 
     def info(self) -> AgentInfo:
         return AgentInfo(
@@ -47,14 +48,58 @@ class DefaultAgent(AgentInterface):
                         content=request.prompt,
                     )
                 ],
+                tools=self._tool_manager.definitions(),
+                config=GenerationConfig(),
+            )
+        )
+
+        print("Tool calls:", response.message.tool_calls)
+
+        if not response.message.tool_calls:
+            return AgentResponse(
+                response=response.message.content,
+            )
+        
+        messages = [
+            ChatMessage(
+                role="user",
+                content=request.prompt,
+            )
+        ]
+
+        for call in response.message.tool_calls:
+
+            result = self._tool_manager.execute(
+                call.name,
+                ToolExecutionRequest(
+                    arguments=call.arguments,
+                ),
+            )
+
+            print(result)
+
+            messages.append(
+                ChatMessage(
+                    role="tool",
+                    tool_call_id=call.id,
+                    name=call.name,
+                    content=result.content,
+                )
+            )
+
+        final = provider.generate(
+            GenerationRequest(
+                messages=messages,
+                tools=self._tool_manager.definitions(),
                 config=GenerationConfig(),
             )
         )
 
         return AgentResponse(
-            response=response.content,
+            response=final.message.content,
         )
-    
+
+
     def execute_stream(
         self,
         request: AgentRequest,
@@ -74,6 +119,7 @@ class DefaultAgent(AgentInterface):
                         content=request.prompt,
                     )
                 ],
+                tools=self._tool_manager.definitions(),
                 config=GenerationConfig(
                     stream=True,
                 ),

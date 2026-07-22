@@ -8,7 +8,16 @@ from adityacli.mode import ModeManager
 from adityacli.provider import ProviderManager, ProviderRegistry, LMStudioProvider
 from adityacli.security import SecurityManager
 from adityacli.session import SessionManager
-from adityacli.tool import ToolManager, ToolRegistry
+from adityacli.tool import (
+    EditFileTool,
+    GitTool,
+    ReadFileTool,
+    SearchTool,
+    TerminalTool,
+    ToolManager,
+    ToolRegistry,
+    WriteFileTool,
+)
 from adityacli.workspace import WorkspaceManager
 
 
@@ -28,6 +37,40 @@ class Application:
             LMStudioProvider,
         )
         self.tool_registry = ToolRegistry()
+
+        #
+        # Built-in Tools
+        #
+        self.tool_registry.register(
+            "read_file",
+            ReadFileTool,
+        )
+
+        self.tool_registry.register(
+            "write_file",
+            WriteFileTool,
+        )
+
+        self.tool_registry.register(
+            "edit_file",
+            EditFileTool,
+        )
+
+        self.tool_registry.register(
+            "terminal",
+            TerminalTool,
+        )
+
+        self.tool_registry.register(
+            "git",
+            GitTool,
+        )
+
+        self.tool_registry.register(
+            "search",
+            SearchTool,
+        )
+
         self.mcp_registry = MCPRegistry()
 
         #
@@ -70,6 +113,7 @@ class Application:
         self.agent_manager.set_agent(
             DefaultAgent(
                 provider_manager=self.provider_manager,
+                tool_manager=self.tool_manager,
             )
         )
 

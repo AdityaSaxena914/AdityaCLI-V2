@@ -1,14 +1,8 @@
 from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-
-from .models import (
-    GenerationRequest,
-    GenerationResponse,
-    ModelInfo,
-    ProviderInfo,
-)
+from adityacli.contracts.generation import GenerationRequest, GenerationResponse
+from adityacli.contracts.provider import ProviderInfo, ModelInfo
 
 class ProviderInterface(ABC):
     """Contract implemented by every provider."""
