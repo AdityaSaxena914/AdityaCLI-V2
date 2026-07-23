@@ -3,6 +3,7 @@ from __future__ import annotations
 from .models import (
     Permission,
     SecurityDecision,
+    SecurityOutcome,
 )
 
 class SecurityValidator:
@@ -15,5 +16,6 @@ class SecurityValidator:
         """Validate a permission request."""
 
         return SecurityDecision(
-            allowed=True,
+            outcome=SecurityOutcome.ALLOW,
+            requires_confirmation=True,
         )

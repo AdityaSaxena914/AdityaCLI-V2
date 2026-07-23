@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .models import Workspace
+from .models import (
+    Workspace,
+    WorkspaceInfo,
+)
 from .validators import WorkspaceValidator
 
 class WorkspaceManager:
@@ -12,8 +15,11 @@ class WorkspaceManager:
         self._workspace: Workspace | None = None
 
     @property
-    def workspace(self) -> Workspace | None:
+    def workspace(self) -> Workspace:
         """Return the active workspace."""
+
+        if self._workspace is None:
+            raise RuntimeError("Workspace is not loaded.")
 
         return self._workspace
     
@@ -26,12 +32,17 @@ class WorkspaceManager:
     def resolve(self, path: Path) -> Path:
         """Resolve a path inside the workspace."""
 
-        if self._workspace is None:
-            raise RuntimeError("Workspace is not loaded.")
-        
         return WorkspaceValidator.validate_path(
-            self._workspace.root,
+            self.workspace.root,
             path,
+        )
+
+    def info(self) -> WorkspaceInfo:
+        """Return workspace metadata."""
+
+        return WorkspaceInfo(
+            name=self.workspace.root.name,
+            root=self.workspace.root,
         )
     
     def unload(self) -> None:

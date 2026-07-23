@@ -4,7 +4,9 @@ from adityacli.contracts.tools import (
     ToolDefinition,
     ToolExecutionRequest,
     ToolExecutionResult,
-    ToolParameter
+    ToolParameter,
+    ToolCategory,
+    PermissionType
 )
 
 
@@ -24,11 +26,13 @@ class ReadFileTool(ToolInterface):
                     description="Path to the file."
                 )
             ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.READ,
         )
     
     def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
-        raise NotImplementedError
+        raise NotImplementedError()
     
     

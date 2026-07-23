@@ -7,7 +7,7 @@ from .models import (
 from .validators import SecurityValidator
 
 class SecurityManager:
-    """Manage runtime security validation."""
+    """Manage runtime security decisions."""
 
     def validate(
         self,

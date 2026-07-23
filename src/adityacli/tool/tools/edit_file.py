@@ -4,7 +4,9 @@ from adityacli.contracts.tools import (
     ToolDefinition,
     ToolExecutionRequest,
     ToolExecutionResult,
-    ToolParameter
+    ToolParameter,
+    PermissionType,
+    ToolCategory,
 )
 
 
@@ -37,11 +39,13 @@ class EditFileTool(ToolInterface):
                     required=True,
                 )
             ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.WRITE,
         )
     
     def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
-        raise NotImplementedError
+        raise NotImplementedError()
     
     

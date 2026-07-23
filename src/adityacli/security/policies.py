@@ -11,16 +11,16 @@ from .models import (
 class SecurityPolicy(ABC):
     """Contract implemented by every security policy."""
 
-@abstractmethod
-def policy(self) -> Policy:
-    """Return the policy metadata."""
-    ...
-    
-    
-@abstractmethod
-def validate(
-    self,
-    permission: Permission,
-) -> SecurityDecision:
-    """Validate a permission request."""
-    ...
+    @abstractmethod
+    def policy(self) -> Policy:
+        """Return the policy metadata."""
+        ...
+        
+        
+    @abstractmethod
+    def validate(
+        self,
+        permission: Permission,
+    ) -> SecurityDecision:
+        """Validate a permission request."""
+        ...

@@ -4,7 +4,9 @@ from adityacli.contracts.tools import (
     ToolDefinition,
     ToolExecutionRequest,
     ToolExecutionResult,
-    ToolParameter
+    ToolParameter,
+    PermissionType,
+    ToolCategory,
 )
 
 class TerminalTool(ToolInterface):
@@ -15,7 +17,7 @@ class TerminalTool(ToolInterface):
 
         return ToolDefinition(
             name="terminal",
-            description="ERun terminal command.",
+            description="Run a terminal command.",
             parameters=[
                 ToolParameter(
                     name="command",
@@ -24,11 +26,13 @@ class TerminalTool(ToolInterface):
                     required=True,
                 ),
             ],
+            category=ToolCategory.TERMINAL,
+            permission=PermissionType.EXECUTE,
         )
     
     def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
-        raise NotImplementedError
+        raise NotImplementedError()
     
     

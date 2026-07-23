@@ -4,18 +4,20 @@ from adityacli.contracts.tools import (
     ToolDefinition,
     ToolExecutionRequest,
     ToolExecutionResult,
-    ToolParameter
+    ToolParameter,
+    ToolCategory,
+    PermissionType
 )
 
-class SearchTool(ToolInterface):
+class WorkspaceSearchTool(ToolInterface):
     """search a file from the workspace."""
 
     def definition(self) -> ToolDefinition:
         """Return the tool definition."""
 
         return ToolDefinition(
-            name="search_file",
-            description="search a file from workspace.",
+            name="workspace_search",
+            description="Search files in the current workspace.",
             parameters=[
                 ToolParameter(
                     name="query",
@@ -24,11 +26,13 @@ class SearchTool(ToolInterface):
                     required=True,
                 ),
             ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.READ,
         )
     
     def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
-        raise NotImplementedError
+        raise NotImplementedError()
     
     

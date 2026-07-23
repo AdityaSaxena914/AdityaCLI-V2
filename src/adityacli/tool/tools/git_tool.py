@@ -4,11 +4,13 @@ from adityacli.contracts.tools import (
     ToolDefinition,
     ToolExecutionRequest,
     ToolExecutionResult,
-    ToolParameter
+    ToolParameter,
+    ToolCategory,
+    PermissionType
 )
 
 
-class GitTool(ToolInterface):
+class GitStatusTool(ToolInterface):
     """Check git branch status."""
 
     def definition(self) -> ToolDefinition:
@@ -25,11 +27,13 @@ class GitTool(ToolInterface):
                     required=True,
                 ),
             ],
+            category=ToolCategory.GIT,
+            permission=PermissionType.GIT,
         )
     
     def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
-        raise NotImplementedError
+        raise NotImplementedError()
     
     

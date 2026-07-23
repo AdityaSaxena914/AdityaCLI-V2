@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from .interface import ToolInterface
+from .exceptions import (
+    ToolNotFoundError,
+    ToolValidationError,
+)
 from adityacli.contracts.tools import ToolDefinition
 
 
@@ -20,7 +24,7 @@ class ToolRegistry:
         """Register a tool implementation."""
 
         if name in self._tools:
-            raise ValueError(
+            raise ToolValidationError(
                 f"Tool '{name}' is already registered."
             )
         
@@ -31,8 +35,8 @@ class ToolRegistry:
         """Unregister a tool."""
 
         if not self.exists(name):
-            raise ValueError(
-                f"Tool '{name}' is not registered"
+            raise ToolValidationError(
+                f"Tool '{name}' is already registered."
             )
         
         del self._tools[name]
@@ -48,8 +52,8 @@ class ToolRegistry:
         """Create a tool instance."""
 
         if not self.exists(name):
-            raise ValueError(
-                f"Tool '{name}' is not registered."
+            raise ToolValidationError(
+                f"Tool '{name}' is already registered."
             )
         
         tool_class = self._tools[name]

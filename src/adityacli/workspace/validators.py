@@ -25,7 +25,7 @@ class WorkspaceValidator:
 
         if not path.is_dir():
             raise InvalidWorkspaceError(
-                message="Workspace path is not a director"
+                message="Workspace path is not a directory."
             )
 
         return path

@@ -4,7 +4,10 @@ from ..interface import ToolInterface
 from adityacli.contracts.tools import (
     ToolDefinition,
     ToolParameter,
-    ToolExecutionRequest
+    ToolExecutionRequest,
+    PermissionType,
+    ToolCategory,
+    ToolExecutionResult,    
 )
 
 class WriteFileTool(ToolInterface):
@@ -30,11 +33,13 @@ class WriteFileTool(ToolInterface):
                     required=True,
                 )
             ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.WRITE,
         )
     
-    def execute(self, request: ToolExecutionRequest) -> ToolExecutionRequest:
+    def execute(self, request: ToolExecutionRequest) -> ToolExecutionResult:
         """Execute the tool."""
 
-        raise NotImplementedError
+        raise NotImplementedError()
     
     

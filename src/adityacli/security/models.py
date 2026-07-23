@@ -1,19 +1,36 @@
 from __future__ import annotations
-
+from enum import Enum
 from pydantic import BaseModel
+from adityacli.contracts.tools import PermissionType
+
+
+
+
+class SecurityOutcome(str, Enum):
+    """Possible security decisions."""
+
+    ALLOW = "allow"
+    REJECT = "reject"
+    SANDBOX = "sandbox"
+
 
 class Permission(BaseModel):
-    """Represents a tool permission."""
+    """Permission requested by a tool."""
 
-    category: str
+    permission: PermissionType
+
 
 class Policy(BaseModel):
-    """Represents a security policy."""
+    """Security policy metadata."""
 
     name: str
 
-class SecurityDecision(BaseModel):
-    """Represents the result of a security validation."""
 
-    allowed: bool
+class SecurityDecision(BaseModel):
+    """Result returned by the Security subsystem."""
+
+    outcome: SecurityOutcome
+
     reason: str | None = None
+
+    requires_confirmation: bool = False
