@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from pathlib import Path
 from .grammars import filesystem
 from .models import (
     IntentResult,
@@ -98,10 +98,15 @@ class IntentRouter:
             if len(text.split()) >= 2:
                 target = text.split()[1]
 
+                candidate = Path(
+                    target.strip(
+                        ".,:;!?()[]{}\"'"
+                    )
+                )
+
                 if (
-                    "." in target
-                    or "/" in target
-                    or "\\" in target
+                    candidate.suffix
+                    or len(candidate.parts) > 1
                     or target.startswith("~")
                 ):
                     return IntentResult(

@@ -19,11 +19,14 @@ from .pipeline_dispatcher import PipelineDispatcher
 from .prompt_manager import PromptManager
 from .resource_manager import ResourceManager
 from .models import (
+    IntentResult,
     IntentType,
     PipelineType,
     RuntimeResponse,
 )
 from .parser import RuntimeParser
+from adityacli.conversation.manager import ConversationManager
+from .path_extractor import PathExtractor
 
 class RuntimeManager:
     """Runtime-first execution manager."""
@@ -35,12 +38,15 @@ class RuntimeManager:
         workspace_manager: WorkspaceManager,
         security_manager: SecurityManager,
         agent_manager: AgentManager,
+        conversation_manager: ConversationManager,
     ) -> None:
+
         self._provider_manager = provider_manager
         self._tool_manager = tool_manager
         self._workspace_manager = workspace_manager
         self._security_manager = security_manager
         self._agent_manager = agent_manager
+        self._conversation_manager = conversation_manager
 
         self._resource_manager = ResourceManager(
             provider_manager,
@@ -56,6 +62,7 @@ class RuntimeManager:
 
         self._prompt_manager = PromptManager()
         self._parser = RuntimeParser()
+        self._path_extractor = PathExtractor()
 
         self._tool_context: ToolExecutionContext = ToolExecutionContext(
             workspace_manager=self._workspace_manager,
@@ -86,6 +93,8 @@ class RuntimeManager:
 
         intent = self._intent_router.route(prompt)
 
+        
+
         pipeline = self._pipeline_dispatcher.dispatch(
             intent,
         )
@@ -98,7 +107,7 @@ class RuntimeManager:
             )
             return
 
-        yield from self._execute_agent_stream(prompt,pipeline)
+        yield from self._execute_agent_stream(prompt,pipeline,intent)
 
 
 
@@ -106,6 +115,7 @@ class RuntimeManager:
         self,
         prompt: str,
         pipeline: PipelineType,
+        intent: IntentResult,
     ) -> Iterator[str]:
         """Stream semantic/reasoning execution."""
 
@@ -115,27 +125,20 @@ class RuntimeManager:
             PipelineType.SEMANTIC,
             PipelineType.REASONING,
         ):
+            path = self._path_extractor.extract(prompt)
 
-            words = prompt.split()
+            if path is not None:
+                plan = self._parser.parse(
+                    "read_file",
+                    f"read {path.as_posix()}",
+                )
 
-            for word in words:
-
-                if (
-                    "." in word
-                    or "/" in word
-                    or "\\" in word
-                ):
-                    plan = self._parser.parse(
-                        "read_file",
-                        f"read {word}",
-                    )
-
+                if not plan.empty:
                     context = self._context_builder.build(
                         plan=plan,
                         context_budget=self._resource_manager.context_budget(),
                     )
-
-                    break
+                
 
         prompt_context = self._prompt_manager.build(
             pipeline=pipeline,
@@ -143,11 +146,21 @@ class RuntimeManager:
             context=context,
         )
 
-        yield from self._agent_manager.execute_stream(
+        self._conversation_manager.append_user(prompt)
+
+        chunks: list[str] = []
+
+        for chunk in self._agent_manager.execute_stream(
             AgentRequest(
                 system_prompt=prompt_context.system_prompt,
                 prompt=prompt_context.user_prompt,
             )
+        ):
+            chunks.append(chunk)
+            yield chunk
+
+        self._conversation_manager.append_assistant(
+            "".join(chunks)
         )
 
 
@@ -173,11 +186,6 @@ class RuntimeManager:
         if plan.empty:
             yield "Nothing to execute."
             return
-
-        context = ToolExecutionContext(
-            workspace_manager=self._workspace_manager,
-            security_manager=self._security_manager,
-        )
 
         first = True
 

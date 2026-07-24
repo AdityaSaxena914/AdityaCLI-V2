@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from .exceptions import SessionNotActiveError
 from .models import Session
 
 class SessionManager:
@@ -9,8 +9,13 @@ class SessionManager:
         self._session: Session | None = None
 
     @property
-    def session(self) -> Session | None:
+    def session(self) -> Session:
         """Return the active session."""
+
+        if self._session is None:
+            raise SessionNotActiveError(
+                "No active session."
+            )
 
         return self._session
     

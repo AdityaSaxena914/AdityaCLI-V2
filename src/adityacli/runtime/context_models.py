@@ -15,6 +15,7 @@ class ContextSource(str, Enum):
     SEARCH = "search"
     MCP = "mcp"
     RAG = "rag"
+    CONVERSATION = "conversation"
 
 
 class ContextDocument(BaseModel):

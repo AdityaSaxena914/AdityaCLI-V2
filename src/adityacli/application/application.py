@@ -22,6 +22,7 @@ from adityacli.tool import (
 )
 from adityacli.workspace import WorkspaceManager
 from adityacli.runtime import RuntimeManager
+from adityacli.conversation.manager import ConversationManager
 
 
 class Application:
@@ -98,6 +99,10 @@ class Application:
         self.workspace_manager = WorkspaceManager()
         self.workspace_manager.load(Path.cwd())
         self.session_manager = SessionManager()
+        self.session_manager.create()
+        self.conversation_manager = ConversationManager(
+            self.session_manager.session.conversation,
+        )
         self.security_manager = SecurityManager()
 
 
@@ -135,6 +140,7 @@ class Application:
             workspace_manager=self.workspace_manager,
             security_manager=self.security_manager,
             agent_manager=self.agent_manager,
+            conversation_manager=self.conversation_manager,
         )
 
         self.agent_manager.set_agent(
@@ -143,6 +149,7 @@ class Application:
                 tool_manager=self.tool_manager,
                 workspace_manager=self.workspace_manager,
                 security_manager=self.security_manager,
+                conversation_manager=self.conversation_manager,
             )
         )
 

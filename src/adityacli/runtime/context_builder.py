@@ -11,7 +11,6 @@ from .context_models import (
     ContextSource,
 )
 
-
 class ContextBuilder:
     """Build deterministic context for language models."""
 
@@ -20,6 +19,34 @@ class ContextBuilder:
         workspace_manager: WorkspaceManager,
     ) -> None:
         self._workspace = workspace_manager
+
+    def build(
+        self,
+        plan: RuntimePlan,
+        context_budget: int,
+    ) -> ContextBundle:
+
+        bundle = ContextBundle()
+
+        for step in plan.steps:
+
+            match step.tool:
+
+                case "read_file":
+                    path = Path(str(step.arguments["path"]))
+
+                    bundle.documents.extend(
+                        self._build_file(
+                            path,
+                            context_budget,
+                        ).documents
+                    )
+
+                case _:
+                    continue
+
+        return bundle
+    
 
     def _build_file(
         self,
@@ -86,31 +113,3 @@ class ContextBuilder:
                 )
             ]
         )
-
-    def build(
-        self,
-        plan: RuntimePlan,
-        context_budget: int,
-    ) -> ContextBundle:
-        """Build structured context from a runtime plan."""
-
-        bundle = ContextBundle()
-
-        for step in plan.steps:
-
-            match step.tool:
-
-                case "read_file":
-                    path = Path(str(step.arguments["path"]))
-
-                    bundle.documents.extend(
-                        self._build_file(
-                            path,
-                            context_budget,
-                        ).documents
-                    )
-
-                case _:
-                    continue
-
-        return bundle

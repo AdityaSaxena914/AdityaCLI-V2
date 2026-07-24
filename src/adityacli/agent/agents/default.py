@@ -20,7 +20,8 @@ from ..models import (
     AgentRequest,
     AgentResponse,
 )
-
+from adityacli.conversation.manager import ConversationManager
+from ..message_builder import MessageBuilder
 
 class DefaultAgent(AgentInterface):
     """Default agent implementation."""
@@ -31,11 +32,16 @@ class DefaultAgent(AgentInterface):
         tool_manager: ToolManager,
         workspace_manager: WorkspaceManager,
         security_manager: SecurityManager,
+        conversation_manager: ConversationManager,
     ) -> None:
         self._provider_manager = provider_manager
         self._tool_manager = tool_manager
         self._workspace_manager = workspace_manager
         self._security_manager = security_manager
+
+        self._message_builder = MessageBuilder(
+            conversation_manager,
+        )
 
     def info(self) -> AgentInfo:
         return AgentInfo(
@@ -52,21 +58,9 @@ class DefaultAgent(AgentInterface):
         if provider is None:
             raise RuntimeError("No active provider.")
 
-        messages: list[ChatMessage] = []
-
-        if request.system_prompt:
-            messages.append(
-                ChatMessage(
-                    role="system",
-                    content=request.system_prompt,
-                )
-            )
-
-        messages.append(
-            ChatMessage(
-                role="user",
-                content=request.prompt,
-            )
+        messages = self._message_builder.build(
+            system_prompt=request.system_prompt,
+            user_prompt=request.prompt,
         )
 
         response = provider.generate(
@@ -132,22 +126,11 @@ class DefaultAgent(AgentInterface):
         if provider is None:
             raise RuntimeError("No active provider.")
 
-        messages: list[ChatMessage] = []
-
-        if request.system_prompt:
-            messages.append(
-                ChatMessage(
-                    role="system",
-                    content=request.system_prompt,
-                )
-            )
-
-        messages.append(
-            ChatMessage(
-                role="user",
-                content=request.prompt,
-            )
-)
+        messages = self._message_builder.build(
+            system_prompt=request.system_prompt,
+            user_prompt=request.prompt,
+        )
+        
 
         response = provider.generate(
             GenerationRequest(
