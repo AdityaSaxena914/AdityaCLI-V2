@@ -18,23 +18,22 @@ from adityacli.tool.exceptions import (
 from ..interface import ToolInterface
 
 
-class ReadFileTool(ToolInterface):
-    """Read a file from the active workspace."""
+class DeleteFileTool(ToolInterface):
 
     def definition(self) -> ToolDefinition:
         return ToolDefinition(
-            name="read_file",
-            description="Read the contents of a file.",
+            name="delete_file",
+            description="Delete a file.",
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.WRITE,
             parameters=[
                 ToolParameter(
                     name="path",
                     type="string",
-                    description="Relative path to the file.",
+                    description="Relative path.",
                     required=True,
-                )
+                ),
             ],
-            category=ToolCategory.FILESYSTEM,
-            permission=PermissionType.READ,
         )
 
     def execute(
@@ -44,25 +43,24 @@ class ReadFileTool(ToolInterface):
 
         path = request.arguments.get("path")
 
-        if not isinstance(path, str) or not path.strip():
+        if not isinstance(path, str):
             raise ToolValidationError(
                 "Argument 'path' is required."
             )
 
-        workspace = request.context.workspace_manager
-
         try:
-            file_path = workspace.resolve(Path(path))
+            file = request.context.workspace_manager.resolve(
+                Path(path)
+            )
+
+            file.unlink()
 
             return ToolExecutionResult(
                 success=True,
-                content=file_path.read_text(
-                    encoding="utf-8",
-                    errors="ignore",
-                ),
+                content=f"Deleted '{path}'.",
             )
 
         except OSError as exc:
             raise ToolExecutionError(
-                f"Failed to read '{path}'."
+                f"Failed to delete '{path}'."
             ) from exc

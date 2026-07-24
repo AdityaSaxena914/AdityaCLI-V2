@@ -2,32 +2,42 @@ from __future__ import annotations
 
 from .models import (
     IntentResult,
+    IntentType,
     PipelineType,
 )
 
 
 class PipelineDispatcher:
-    """Dispatch requests to the appropriate execution pipeline."""
+    """Select the execution pipeline for a classified request."""
 
     def dispatch(
         self,
         intent: IntentResult,
     ) -> PipelineType:
-        """Return the selected execution pipeline."""
+        """Return the execution pipeline."""
 
-        match intent.pipeline:
-            case PipelineType.DETERMINISTIC:
+        match intent.intent:
+            case (
+                IntentType.FILESYSTEM
+                | IntentType.TERMINAL
+                | IntentType.GIT
+                | IntentType.SEARCH
+                | IntentType.WEB
+                | IntentType.MCP
+            ):
                 return PipelineType.DETERMINISTIC
 
-            case PipelineType.SEMANTIC:
+            case IntentType.SEMANTIC:
                 return PipelineType.SEMANTIC
 
-            case PipelineType.REASONING:
+            case IntentType.REASONING:
                 return PipelineType.REASONING
 
-            case PipelineType.AMBIGUOUS:
-                return PipelineType.AMBIGUOUS
+            case IntentType.AMBIGUOUS:
+                raise ValueError(
+                    "Unable to determine execution pipeline."
+                )
 
         raise ValueError(
-            f"Unsupported pipeline: {intent.pipeline}"
+            f"Unsupported intent: {intent.intent.value}"
         )

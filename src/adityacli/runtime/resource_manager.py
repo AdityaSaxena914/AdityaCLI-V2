@@ -3,19 +3,18 @@ from __future__ import annotations
 from adityacli.contracts.provider import ModelInfo
 from adityacli.provider import ProviderManager
 
-from .exceptions import ResourceUnavailableError
-from .models import ResourceState
-
 from .constants import (
     CONVERSATION_HISTORY_RESERVE,
     MIN_CONTEXT_BUDGET,
     MODEL_RESPONSE_RESERVE,
     SYSTEM_PROMPT_RESERVE,
 )
+from .exceptions import ResourceUnavailableError
+from .models import ResourceState
 
 
 class ResourceManager:
-    """Manage runtime resources."""
+    """Maintain runtime resource state."""
 
     def __init__(
         self,
@@ -24,51 +23,45 @@ class ResourceManager:
         self._provider_manager = provider_manager
 
     def state(self) -> ResourceState:
-        """Return the current runtime resource state."""
+        """Return the current model state."""
 
         if not self._provider_manager.health_check():
-            return ResourceState(
-                provider_online=False,
-                model_loaded=False,
+            raise ResourceUnavailableError(
+                "Provider is offline."
             )
 
         model: ModelInfo = self._provider_manager.model_info()
 
         return ResourceState(
-            provider_online=True,
-            model_loaded=True,
-            model_name=model.name,
+            provider=self._provider_manager.provider_info().name,
+            model=model.name,
             context_window=model.context_window,
             quantization=model.quantization,
             estimated_ram_mb=model.estimated_ram_mb,
+            supports_streaming=model.supports_streaming,
+            supports_tools=model.supports_tools,
+            supports_grammar=model.supports_grammar,
         )
 
-    def validate(self) -> None:
-        """Ensure resources are available."""
+    def validate(self) -> ResourceState:
+        """Validate runtime resources."""
 
         state = self.state()
 
-        if not state.provider_online:
+        if not state.model:
             raise ResourceUnavailableError(
-                message="Provider is offline."
+                "No model is loaded."
             )
 
-        if not state.model_loaded:
-            raise ResourceUnavailableError(
-                message="No model is loaded."
-            )
+        return state
 
     def context_budget(self) -> int:
-        """Return the available context budget."""
+        """Return the usable context window."""
 
-        model = self._provider_manager.model_info()
-
-        reserved_response = 12000
-        reserved_system = 2000
-        reserved_history = 8000
+        state = self.state()
 
         budget = (
-            model.context_window
+            state.context_window
             - SYSTEM_PROMPT_RESERVE
             - CONVERSATION_HISTORY_RESERVE
             - MODEL_RESPONSE_RESERVE

@@ -31,6 +31,17 @@ class ProviderManager:
 
         return self._active_provider
 
+    @property
+    def active_provider(self) -> ProviderInterface | None:
+        """
+        Backward-compatible accessor.
+
+        Returns None when no provider is active.
+        """
+
+        return self._active_provider
+
+
     def switch_provider(self, name: str) -> None:
         """Switch the active provider."""
 

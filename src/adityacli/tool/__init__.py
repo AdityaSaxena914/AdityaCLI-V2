@@ -8,8 +8,11 @@ from .tools.read_file import ReadFileTool
 from .tools.write_file import WriteFileTool
 from .tools.edit_file import EditFileTool
 from .tools.terminal import TerminalTool
-from .tools.git_tool import GitTool
-from .tools.workspace_search import SearchTool
+from .tools.git_tool import GitStatusTool
+from .tools.workspace_search import WorkspaceSearchTool
+from .tools.copy_file import CopyFileTool
+from .tools.delete_file import DeleteFileTool
+from .tools.move_file import MoveFileTool
 
 __all__ = [
     "ToolInterface",
@@ -19,6 +22,9 @@ __all__ = [
     "WriteFileTool",
     "EditFileTool",
     "TerminalTool",
-    "GitTool",
-    "SearchTool",
+    "GitStatusTool",
+    "WorkspaceSearchTool",
+    "CopyFileTool",
+    "DeleteFileTool",
+    "MoveFileTool",
 ]

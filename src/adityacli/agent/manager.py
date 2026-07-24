@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-from adityacli.mode import ModeManager
 from adityacli.provider import ProviderManager
 from adityacli.security import SecurityManager
 from adityacli.session import SessionManager
@@ -22,14 +20,12 @@ class AgentManager:
         tool_manager: ToolManager,
         workspace_manager: WorkspaceManager,
         session_manager: SessionManager,
-        mode_manager: ModeManager,
         security_manager: SecurityManager,
     ) -> None:
         self._provider_manager = provider_manager
         self._tool_manager = tool_manager
         self._workspace_manager = workspace_manager
         self._session_manager = session_manager
-        self._mode_manager = mode_manager
         self._security_manager = security_manager
 
         self._agent: AgentInterface | None = None

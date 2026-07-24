@@ -15,6 +15,7 @@ class ToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, type[ToolInterface]] = {}
 
+    
 
     def register(
             self,
@@ -29,6 +30,8 @@ class ToolRegistry:
             )
         
         self._tools[name] = tool_class
+
+
     
 
     def unregister(self, name: str) -> None:
@@ -49,13 +52,7 @@ class ToolRegistry:
     
 
     def create(self, name: str) -> ToolInterface:
-        """Create a tool instance."""
 
-        if not self.exists(name):
-            raise ToolValidationError(
-                f"Tool '{name}' is already registered."
-            )
-        
         tool_class = self._tools[name]
 
         return tool_class()

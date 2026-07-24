@@ -1,16 +1,25 @@
 from __future__ import annotations
+
+from collections.abc import Iterator
+
 from adityacli.contracts.chat import ChatMessage
-from adityacli.contracts.generation import GenerationConfig, GenerationRequest
+from adityacli.contracts.generation import (
+    GenerationConfig,
+    GenerationRequest,
+)
+from adityacli.contracts.tool_context import ToolExecutionContext
 from adityacli.contracts.tools import ToolExecutionRequest
 from adityacli.provider import ProviderManager
-from collections.abc import Iterator
+from adityacli.security import SecurityManager
+from adityacli.tool.manager import ToolManager
+from adityacli.workspace import WorkspaceManager
+
 from ..interface import AgentInterface
 from ..models import (
     AgentInfo,
     AgentRequest,
     AgentResponse,
 )
-from adityacli.tool.manager import ToolManager
 
 
 class DefaultAgent(AgentInterface):
@@ -20,10 +29,13 @@ class DefaultAgent(AgentInterface):
         self,
         provider_manager: ProviderManager,
         tool_manager: ToolManager,
-    ):
+        workspace_manager: WorkspaceManager,
+        security_manager: SecurityManager,
+    ) -> None:
         self._provider_manager = provider_manager
         self._tool_manager = tool_manager
-
+        self._workspace_manager = workspace_manager
+        self._security_manager = security_manager
 
     def info(self) -> AgentInfo:
         return AgentInfo(
@@ -40,43 +52,44 @@ class DefaultAgent(AgentInterface):
         if provider is None:
             raise RuntimeError("No active provider.")
 
-        response = provider.generate(
-            GenerationRequest(
-                messages=[
-                    ChatMessage(
-                        role="user",
-                        content=request.prompt,
-                    )
-                ],
-                tools=self._tool_manager.definitions(),
-                config=GenerationConfig(),
-            )
-        )
-
-        print("Tool calls:", response.message.tool_calls)
-
-        if not response.message.tool_calls:
-            return AgentResponse(
-                response=response.message.content,
-            )
-        
-        messages = [
+        messages: list[ChatMessage] = [
             ChatMessage(
                 role="user",
                 content=request.prompt,
             )
         ]
 
-        for call in response.message.tool_calls:
+        response = provider.generate(
+            GenerationRequest(
+                messages=messages,
+                tools=self._tool_manager.definitions(),
+                config=GenerationConfig(),
+            )
+        )
 
-            result = self._tool_manager.execute(
-                call.name,
-                ToolExecutionRequest(
-                    arguments=call.arguments,
+        assistant_message = response.message
+
+        if not assistant_message.tool_calls:
+            return AgentResponse(
+                response=assistant_message.content or "",
+            )
+
+        messages.append(assistant_message)
+
+        for call in assistant_message.tool_calls:
+
+            tool_request = ToolExecutionRequest(
+                arguments=call.arguments,
+                context=ToolExecutionContext(
+                    workspace_manager=self._workspace_manager,
+                    security_manager=self._security_manager,
                 ),
             )
 
-            print(result)
+            result = self._tool_manager.execute(
+                call.name,
+                tool_request,
+            )
 
             messages.append(
                 ChatMessage(
@@ -87,18 +100,16 @@ class DefaultAgent(AgentInterface):
                 )
             )
 
-        final = provider.generate(
+        final_response = provider.generate(
             GenerationRequest(
                 messages=messages,
-                tools=self._tool_manager.definitions(),
                 config=GenerationConfig(),
             )
         )
 
         return AgentResponse(
-            response=final.message.content,
+            response=final_response.message.content or "",
         )
-
 
     def execute_stream(
         self,

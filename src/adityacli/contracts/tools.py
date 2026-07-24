@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Any
-
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field,ConfigDict
+from .tool_context import ToolExecutionContext
+from dataclasses import dataclass
 
 class ToolCategory(str, Enum):
     """High-level tool categories."""
@@ -61,10 +61,13 @@ class ToolCall(BaseModel):
     arguments: dict[str, Any] = Field(default_factory=dict)
 
 
-class ToolExecutionRequest(BaseModel):
+
+@dataclass(slots=True)
+class ToolExecutionRequest:
     """Request passed to a tool implementation."""
 
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    arguments: dict[str, Any]
+    context: ToolExecutionContext
 
 
 class ToolExecutionResult(BaseModel):

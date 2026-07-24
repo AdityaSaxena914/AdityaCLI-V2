@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from pathlib import Path
 from adityacli.agent import AgentManager, DefaultAgent
 from adityacli.config import settings
 from adityacli.logging import get_logger
@@ -9,15 +9,19 @@ from adityacli.security import SecurityManager
 from adityacli.session import SessionManager
 from adityacli.tool import (
     EditFileTool,
-    GitTool,
+    GitStatusTool,
     ReadFileTool,
-    SearchTool,
+    WorkspaceSearchTool,
     TerminalTool,
     ToolManager,
     ToolRegistry,
     WriteFileTool,
+    CopyFileTool,
+    MoveFileTool,
+    DeleteFileTool,
 )
 from adityacli.workspace import WorkspaceManager
+from adityacli.runtime import RuntimeManager
 
 
 class Application:
@@ -61,23 +65,41 @@ class Application:
         )
 
         self.tool_registry.register(
-            "git",
-            GitTool,
+            "git_status",
+            GitStatusTool,
         )
 
         self.tool_registry.register(
-            "search",
-            SearchTool,
+            "workspace_search",
+            WorkspaceSearchTool,
         )
 
+        self.tool_registry.register(
+            "copy_file",
+            CopyFileTool,
+        )
+
+        self.tool_registry.register(
+            "move_file",
+            MoveFileTool,
+        )
+
+        self.tool_registry.register(
+            "delete_file",
+            DeleteFileTool,
+        )
+
+        
         self.mcp_registry = MCPRegistry()
 
         #
         # Managers
         #
         self.workspace_manager = WorkspaceManager()
+        self.workspace_manager.load(Path.cwd())
         self.session_manager = SessionManager()
         self.security_manager = SecurityManager()
+
 
         self.provider_manager = ProviderManager(
             self.provider_registry,
@@ -92,7 +114,7 @@ class Application:
         )
         
         self.tool_manager = ToolManager(
-            self.tool_registry,
+            registry=self.tool_registry,
         )
 
         self.mcp_manager = MCPManager(
@@ -107,10 +129,20 @@ class Application:
             security_manager=self.security_manager,
         )
 
+        self.runtime_manager = RuntimeManager(
+            provider_manager=self.provider_manager,
+            tool_manager=self.tool_manager,
+            workspace_manager=self.workspace_manager,
+            security_manager=self.security_manager,
+            agent_manager=self.agent_manager,
+        )
+
         self.agent_manager.set_agent(
             DefaultAgent(
                 provider_manager=self.provider_manager,
                 tool_manager=self.tool_manager,
+                workspace_manager=self.workspace_manager,
+                security_manager=self.security_manager,
             )
         )
 

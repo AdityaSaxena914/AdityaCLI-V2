@@ -37,12 +37,8 @@ def repl(
 
             console.print("[bold blue]Assistant[/bold blue]", end=": ")
 
-            for chunk in app.agent_manager.execute_stream(
-                AgentRequest(
-                    prompt=prompt,
-                )
-            ):
-                console.print(chunk, end="")
+            response = app.runtime_manager.execute(prompt)
+            console.print(response.content)
 
             console.print("\n")
 

@@ -1,120 +1,178 @@
 from __future__ import annotations
 
-import re
-
+from .grammars import filesystem
 from .models import (
     IntentResult,
+    IntentType,
     PipelineType,
 )
 
 
 class IntentRouter:
-    """Deterministically route requests to execution pipelines."""
+    """Deterministically classify user requests."""
 
-    _DETERMINISTIC_PATTERNS: dict[str, tuple[str, ...]] = {
-        "read_file": (
-            r"\bread\b",
-            r"\bopen\b",
-            r"\bshow\b",
-            r"\bdisplay\b",
-        ),
-        "write_file": (
-            r"\bwrite\b",
-            r"\bcreate\b",
-            r"\bsave\b",
-        ),
-        "edit_file": (
-            r"\bedit\b",
-            r"\breplace\b",
-            r"\bmodify\b",
-            r"\bupdate\b",
-        ),
-        "workspace_search": (
-            r"\bsearch\b",
-            r"\bfind\b",
-            r"\blocate\b",
-        ),
-        "git_status": (
-            r"\bgit\b",
-            r"\bbranch\b",
-            r"\bcommit\b",
-            r"\bstatus\b",
-        ),
-        "terminal": (
-            r"\brun\b",
-            r"\bexecute\b",
-            r"\bterminal\b",
-            r"\bcommand\b",
-        ),
-        "web_search": (
-            r"\bweb\b",
-            r"\binternet\b",
-            r"\bgoogle\b",
-            r"\bsearch online\b",
-            r"\blatest\b",
-            r"\bnews\b",
-        ),
-    }
+    _SEARCH = (
+        "find",
+        "search",
+        "locate",
+    )
 
-    def route(self, prompt: str) -> IntentResult:
-        """Route a request to the correct execution pipeline."""
+    _TERMINAL = (
+        "run",
+        "execute",
+    )
 
-        text = prompt.lower()
+    _GIT = (
+        "git",
+        "commit",
+        "branch",
+        "checkout",
+        "merge",
+        "pull",
+        "push",
+        "status",
+        "diff",
+        "log",
+    )
 
-        for tool, patterns in self._DETERMINISTIC_PATTERNS.items():
-            for pattern in patterns:
-                if re.search(pattern, text):
-                    return IntentResult(
-                        pipeline=PipelineType.DETERMINISTIC,
-                        confidence=1.0,
-                        tool=tool,
-                    )
+    _SEMANTIC = (
+        "explain",
+        "summarize",
+        "describe",
+        "what",
+        "why",
+        "how",
+    )
 
-        if self._requires_reasoning(text):
+    _REASONING = (
+        "analyze",
+        "analyse",
+        "plan",
+        "design",
+        "architect",
+        "implement",
+        "build",
+        "refactor",
+        "optimize",
+        "debug",
+        "solve",
+    )
+
+    def route(
+        self,
+        prompt: str,
+    ) -> IntentResult:
+        """Classify a request without using an LLM."""
+
+        text = prompt.lower().strip()
+
+        if not text:
             return IntentResult(
-                pipeline=PipelineType.REASONING,
-                confidence=0.9,
+                intent=IntentType.AMBIGUOUS,
+                confidence=0.0,
             )
 
-        if self._requires_semantic(text):
+        verb = text.split(maxsplit=1)[0]
+
+
+
+        if verb in filesystem.READ:
             return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="read_file",
+                confidence=1.0,
+            )
+
+        if verb in filesystem.WRITE:
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="write_file",
+                confidence=1.0,
+            )
+
+        if verb in filesystem.EDIT:
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="edit_file",
+                confidence=1.0,
+            )
+
+        if verb in filesystem.COPY:
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="copy_file",
+                confidence=1.0,
+            )
+
+        if verb in filesystem.MOVE:
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="move_file",
+                confidence=1.0,
+            )
+
+        if verb in filesystem.DELETE:
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="delete_file",
+                confidence=1.0,
+            )
+
+
+
+        if verb in self._SEARCH:
+            return IntentResult(
+                intent=IntentType.SEARCH,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="workspace_search",
+                confidence=1.0,
+            )
+
+
+
+        if verb in self._TERMINAL:
+            return IntentResult(
+                intent=IntentType.TERMINAL,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="terminal",
+                confidence=1.0,
+            )
+
+
+
+        if verb in self._GIT:
+            return IntentResult(
+                intent=IntentType.GIT,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="git_status",
+                confidence=1.0,
+            )
+
+
+
+        if any(keyword in text for keyword in self._REASONING):
+            return IntentResult(
+                intent=IntentType.REASONING,
+                pipeline=PipelineType.REASONING,
+                confidence=0.95,
+            )
+
+
+
+        if any(keyword in text for keyword in self._SEMANTIC):
+            return IntentResult(
+                intent=IntentType.SEMANTIC,
                 pipeline=PipelineType.SEMANTIC,
-                confidence=0.8,
+                confidence=0.90,
             )
 
         return IntentResult(
-            pipeline=PipelineType.AMBIGUOUS,
+            intent=IntentType.AMBIGUOUS,
             confidence=0.0,
         )
-
-    @staticmethod
-    def _requires_reasoning(text: str) -> bool:
-        """Return whether reasoning is required."""
-
-        reasoning_keywords = (
-            "plan",
-            "analyze",
-            "design",
-            "architect",
-            "debug",
-            "compare",
-            "refactor",
-            "solve",
-        )
-
-        return any(keyword in text for keyword in reasoning_keywords)
-
-    @staticmethod
-    def _requires_semantic(text: str) -> bool:
-        """Return whether semantic understanding is required."""
-
-        semantic_keywords = (
-            "summarize",
-            "explain",
-            "describe",
-            "what",
-            "why",
-            "how",
-        )
-
-        return any(keyword in text for keyword in semantic_keywords)

@@ -1,0 +1,4740 @@
+
+=== FILE: src\adityacli\agent\constants.py ===
+
+
+=== FILE: src\adityacli\agent\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+class AgentError(RecoverableError):
+    """Base class for all agent-related errors."""
+
+class AgentExecutionError(AgentError):
+    ERROR_CODE = "AGENT_EXECUTION"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request."
+    )
+
+class AgentNotAvailableError(AgentError):
+    ERROR_CODE = "AGENT_NOT_AVAILABLE"
+    DEFAULT_RECOVERY_HINT = (
+        "Initialize the agent before use."
+    )
+
+class AgentConfigurationError(AgentError):
+    ERROR_CODE = "AGENT_CONFIGURATION"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the agent configuration."
+    )
+
+class AgentResponseError(AgentError):
+    ERROR_CODE = "AGENT_RESPONSE"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request or inspect provider output."
+    )
+
+=== FILE: src\adityacli\agent\interface.py ===
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from .models import (
+    AgentInfo,
+    AgentRequest,
+    AgentResponse,
+)
+
+class AgentInterface(ABC):
+    """Contract implemented by every agent."""
+
+    @abstractmethod
+    def info(self) -> AgentInfo:
+        """Return agent metadata."""
+        ...
+    
+    @abstractmethod
+    def execute(
+        self,
+        request: AgentRequest,
+    ) -> AgentResponse:
+        """Execute the agent."""
+        ...
+
+    @abstractmethod
+    def execute_stream(
+        self,
+        request: AgentRequest,
+    ) -> Iterator[str]:
+        """Execute the agent with streaming."""
+        ...
+
+=== FILE: src\adityacli\agent\manager.py ===
+
+from __future__ import annotations
+from adityacli.provider import ProviderManager
+from adityacli.security import SecurityManager
+from adityacli.session import SessionManager
+from adityacli.tool import ToolManager
+from adityacli.workspace import WorkspaceManager
+from collections.abc import Iterator
+from .interface import AgentInterface
+from .models import (
+    AgentRequest,
+    AgentResponse,
+)
+
+class AgentManager:
+    """Manage agent execution."""
+
+    def __init__(
+        self,
+        provider_manager: ProviderManager,
+        tool_manager: ToolManager,
+        workspace_manager: WorkspaceManager,
+        session_manager: SessionManager,
+        security_manager: SecurityManager,
+    ) -> None:
+        self._provider_manager = provider_manager
+        self._tool_manager = tool_manager
+        self._workspace_manager = workspace_manager
+        self._session_manager = session_manager
+        self._security_manager = security_manager
+
+        self._agent: AgentInterface | None = None
+
+    @property
+    def agent(self) -> AgentInterface | None:
+        """Return the active agent."""
+
+        return self._agent
+    
+
+    def set_agent(
+        self,
+        agent: AgentInterface,
+    ) -> None:
+        """Set the active agent."""
+
+        self._agent = agent
+
+    
+    def execute(
+        self,
+        request: AgentRequest,
+    ) -> AgentResponse:
+        """Execute the active agent."""
+
+        if self._agent is None:
+            raise RuntimeError("No active agent.")
+
+        return self._agent.execute(request)
+    
+    def execute_stream(
+        self,
+        request: AgentRequest,
+    ) -> Iterator[str]:
+        """Execute the active agent with streaming."""
+
+        if self._agent is None:
+            raise RuntimeError("No active agent.")
+
+        return self._agent.execute_stream(request)
+
+=== FILE: src\adityacli\agent\models.py ===
+
+from __future__ import annotations
+
+from pydantic import BaseModel
+
+class Agent(BaseModel):
+    """Represents an agent."""
+
+    name: str
+
+class AgentInfo(BaseModel):
+    """Metadata about an agent."""
+
+    name: str
+    description: str
+
+class AgentRequest(BaseModel):
+    """Agent execution request."""
+
+    prompt: str
+
+class AgentResponse(BaseModel):
+    """Agent execution response."""
+
+    response: str
+
+=== FILE: src\adityacli\agent\types.py ===
+
+
+=== FILE: src\adityacli\agent\utils.py ===
+
+
+=== FILE: src\adityacli\agent\__init__.py ===
+
+from .interface import AgentInterface
+from .manager import AgentManager
+
+from .models import (
+    Agent,
+    AgentInfo,
+    AgentRequest,
+    AgentResponse,
+)
+
+from .agents.default import DefaultAgent
+
+__all__ = [
+    "AgentInterface",
+    "AgentManager",
+    "Agent",
+    "AgentInfo",
+    "AgentRequest",
+    "AgentResponse",
+    "DefaultAgent",
+]
+
+=== FILE: src\adityacli\agent\agents\default.py ===
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+
+from adityacli.contracts.chat import ChatMessage
+from adityacli.contracts.generation import (
+    GenerationConfig,
+    GenerationRequest,
+)
+from adityacli.contracts.tool_context import ToolExecutionContext
+from adityacli.contracts.tools import ToolExecutionRequest
+from adityacli.provider import ProviderManager
+from adityacli.security import SecurityManager
+from adityacli.tool.manager import ToolManager
+from adityacli.workspace import WorkspaceManager
+
+from ..interface import AgentInterface
+from ..models import (
+    AgentInfo,
+    AgentRequest,
+    AgentResponse,
+)
+
+
+class DefaultAgent(AgentInterface):
+    """Default agent implementation."""
+
+    def __init__(
+        self,
+        provider_manager: ProviderManager,
+        tool_manager: ToolManager,
+        workspace_manager: WorkspaceManager,
+        security_manager: SecurityManager,
+    ) -> None:
+        self._provider_manager = provider_manager
+        self._tool_manager = tool_manager
+        self._workspace_manager = workspace_manager
+        self._security_manager = security_manager
+
+    def info(self) -> AgentInfo:
+        return AgentInfo(
+            name="default",
+            description="Default AdityaCLI agent.",
+        )
+
+    def execute(
+        self,
+        request: AgentRequest,
+    ) -> AgentResponse:
+        provider = self._provider_manager.active_provider
+
+        if provider is None:
+            raise RuntimeError("No active provider.")
+
+        messages: list[ChatMessage] = [
+            ChatMessage(
+                role="user",
+                content=request.prompt,
+            )
+        ]
+
+        response = provider.generate(
+            GenerationRequest(
+                messages=messages,
+                tools=self._tool_manager.definitions(),
+                config=GenerationConfig(),
+            )
+        )
+
+        assistant_message = response.message
+
+        if not assistant_message.tool_calls:
+            return AgentResponse(
+                response=assistant_message.content or "",
+            )
+
+        messages.append(assistant_message)
+
+        for call in assistant_message.tool_calls:
+
+            tool_request = ToolExecutionRequest(
+                arguments=call.arguments,
+                context=ToolExecutionContext(
+                    workspace_manager=self._workspace_manager,
+                    security_manager=self._security_manager,
+                ),
+            )
+
+            result = self._tool_manager.execute(
+                call.name,
+                tool_request,
+            )
+
+            messages.append(
+                ChatMessage(
+                    role="tool",
+                    tool_call_id=call.id,
+                    name=call.name,
+                    content=result.content,
+                )
+            )
+
+        final_response = provider.generate(
+            GenerationRequest(
+                messages=messages,
+                config=GenerationConfig(),
+            )
+        )
+
+        return AgentResponse(
+            response=final_response.message.content or "",
+        )
+
+    def execute_stream(
+        self,
+        request: AgentRequest,
+    ) -> Iterator[str]:
+        """Execute the agent with streaming."""
+
+        provider = self._provider_manager.active_provider
+
+        if provider is None:
+            raise RuntimeError("No active provider.")
+
+        yield from provider.generate_stream(
+            GenerationRequest(
+                messages=[
+                    ChatMessage(
+                        role="user",
+                        content=request.prompt,
+                    )
+                ],
+                tools=self._tool_manager.definitions(),
+                config=GenerationConfig(
+                    stream=True,
+                ),
+            )
+        )
+
+=== FILE: src\adityacli\application\application.py ===
+
+from __future__ import annotations
+from pathlib import Path
+from adityacli.agent import AgentManager, DefaultAgent
+from adityacli.config import settings
+from adityacli.logging import get_logger
+from adityacli.mcp import MCPManager, MCPRegistry
+from adityacli.provider import ProviderManager, ProviderRegistry, LMStudioProvider
+from adityacli.security import SecurityManager
+from adityacli.session import SessionManager
+from adityacli.tool import (
+    EditFileTool,
+    GitStatusTool,
+    ReadFileTool,
+    WorkspaceSearchTool,
+    TerminalTool,
+    ToolManager,
+    ToolRegistry,
+    WriteFileTool,
+)
+from adityacli.workspace import WorkspaceManager
+from adityacli.runtime import RuntimeManager
+
+
+class Application:
+    """Central application composition root."""
+
+    def __init__(self) -> None:
+        self.settings = settings
+        self.logger = get_logger(__name__)
+
+        #
+        # Registries
+        #
+        self.provider_registry = ProviderRegistry()
+        self.provider_registry.register(
+            "lmstudio",
+            LMStudioProvider,
+        )
+        self.tool_registry = ToolRegistry()
+
+        #
+        # Built-in Tools
+        #
+        self.tool_registry.register(
+            "read_file",
+            ReadFileTool,
+        )
+
+        self.tool_registry.register(
+            "write_file",
+            WriteFileTool,
+        )
+
+        self.tool_registry.register(
+            "edit_file",
+            EditFileTool,
+        )
+
+        self.tool_registry.register(
+            "terminal",
+            TerminalTool,
+        )
+
+        self.tool_registry.register(
+            "git_status",
+            GitStatusTool,
+        )
+
+        self.tool_registry.register(
+            "workspace_search",
+            WorkspaceSearchTool,
+        )
+
+        
+        self.mcp_registry = MCPRegistry()
+
+        #
+        # Managers
+        #
+        self.workspace_manager = WorkspaceManager()
+        self.workspace_manager.load(Path.cwd())
+        self.session_manager = SessionManager()
+        self.security_manager = SecurityManager()
+
+
+        self.provider_manager = ProviderManager(
+            self.provider_registry,
+        )
+
+        self.provider_manager.switch_provider(
+            self.settings.provider.default_provider,
+        )
+
+        self.provider_manager.load_model(
+            self.settings.provider.default_model,
+        )
+        
+        self.tool_manager = ToolManager(
+            registry=self.tool_registry,
+        )
+
+        self.mcp_manager = MCPManager(
+            self.mcp_registry,
+        )
+
+        self.agent_manager = AgentManager(
+            provider_manager=self.provider_manager,
+            tool_manager=self.tool_manager,
+            workspace_manager=self.workspace_manager,
+            session_manager=self.session_manager,
+            security_manager=self.security_manager,
+        )
+
+        self.runtime_manager = RuntimeManager(
+            provider_manager=self.provider_manager,
+            tool_manager=self.tool_manager,
+            workspace_manager=self.workspace_manager,
+            security_manager=self.security_manager,
+            agent_manager=self.agent_manager,
+        )
+
+        self.agent_manager.set_agent(
+            DefaultAgent(
+                provider_manager=self.provider_manager,
+                tool_manager=self.tool_manager,
+                workspace_manager=self.workspace_manager,
+                security_manager=self.security_manager,
+            )
+        )
+
+        self.logger.debug("Application initialized.")
+
+    @property
+    def ready(self) -> bool:
+        """Return whether the application has been initialized."""
+
+        return True
+
+=== FILE: src\adityacli\application\__init__.py ===
+
+from .application import Application
+
+__all__ = ["Application"]
+
+=== FILE: src\adityacli\cli\app.py ===
+
+import typer
+
+from adityacli.cli.callbacks import callback
+from adityacli.cli.commands import version
+from adityacli.cli.commands import doctor
+from adityacli.cli.commands import chat
+from adityacli.cli.commands import repl
+
+app = typer.Typer(
+    name="aditya",
+    help="Local-first AI Developer Assistant",
+    add_completion=False,
+    pretty_exceptions_enable=True,
+)
+
+app.callback()(callback)
+
+app.command()(version)
+app.command(name="doctor")(doctor)
+app.command()(chat)
+app.command()(repl)
+
+=== FILE: src\adityacli\cli\callbacks.py ===
+
+import typer
+
+from adityacli.application import Application
+
+
+def callback(ctx: typer.Context) -> None:
+    """Initialize the AdityaCLI application."""
+
+    if ctx.obj is None:
+        ctx.obj = {}
+
+    if "application" not in ctx.obj:
+        ctx.obj["application"] = Application()
+
+=== FILE: src\adityacli\cli\console.py ===
+
+from rich.console import Console
+
+from .ui import APP_THEME
+
+
+console = Console(
+    theme=APP_THEME,
+)
+
+=== FILE: src\adityacli\cli\main.py ===
+
+from adityacli.cli import app
+
+
+def main() -> None:
+    app()
+
+
+if __name__ == "__main__":
+    main()
+
+=== FILE: src\adityacli\cli\__init__.py ===
+
+"""Command-line interface package."""
+
+from .app import app
+from .console import console
+
+
+__all__ = [
+    "app",
+    "console",
+]
+
+=== FILE: src\adityacli\cli\commands\chat.py ===
+
+from __future__ import annotations
+
+import typer
+from rich.console import Console
+
+from adityacli.agent import AgentRequest
+from adityacli.application import Application
+
+console = Console()
+
+
+def chat(
+    ctx: typer.Context,
+    prompt: str = typer.Argument(
+        ...,
+        help="Prompt to send to the agent.",
+    ),
+) -> None:
+    """Send a prompt to the default agent."""
+
+    app: Application = ctx.obj["application"]
+
+    try:
+        response = app.runtime_manager.execute(prompt)
+        console.print(response.content)
+
+    except KeyboardInterrupt:
+        console.print(
+            "\n[red]Generation interrupted.[/red]"
+        )
+
+=== FILE: src\adityacli\cli\commands\doctor.py ===
+
+import platform
+from pathlib import Path
+
+import typer
+
+from adityacli.application import Application
+from adityacli.cli.console import console
+from adityacli.cli.ui import info_panel
+from adityacli.cli.ui import create_table
+
+
+def doctor(ctx: typer.Context) -> None:
+    """Display environment and application diagnostics."""
+
+    app: Application = ctx.obj["application"]
+
+    console.print(
+        info_panel(
+            "Environment diagnostics",
+            title="AdityaCLI Doctor",
+        )
+    )
+
+    table = create_table(
+        "Property",
+        "Value",
+        title="Environment",
+    )
+
+    table.add_row(
+        "Python",
+        platform.python_version(),
+    )
+
+    table.add_row(
+        "OS",
+        f"{platform.system()} {platform.release()}",
+    )
+
+    table.add_row(
+        "Directory",
+        str(Path.cwd()),
+    )
+
+    table.add_row(
+        "Application",
+        "Initialized",
+    )
+
+    table.add_row(
+        "Ready",
+        "Yes" if app.ready else "No",
+    )
+
+    console.print(table)
+
+    console.print(
+        "Environment check completed successfully.",
+        style="success",
+    )
+
+=== FILE: src\adityacli\cli\commands\repl.py ===
+
+from __future__ import annotations
+
+import typer
+from rich.console import Console
+from rich.prompt import Prompt
+
+from adityacli.agent import AgentRequest
+from adityacli.application import Application
+
+
+console = Console()
+
+
+def repl(
+    ctx: typer.Context,
+) -> None:
+    """Start an interactive chat session."""
+
+    app: Application = ctx.obj["application"]
+
+    console.print("[bold cyan]AdityaCLI v2[/bold cyan]")
+    console.print("Type 'exit' or 'quit' to leave.\n")
+
+    while True:
+        try:
+            prompt = Prompt.ask("[bold green]You[/bold green]")
+
+            if prompt.strip().lower() in {
+                "exit",
+                "quit",
+            }:
+                console.print("\nGoodbye!")
+                break
+
+            if not prompt.strip():
+                continue
+
+            console.print("[bold blue]Assistant[/bold blue]", end=": ")
+
+            response = app.runtime_manager.execute(prompt)
+            console.print(response.content)
+
+            console.print("\n")
+
+        except KeyboardInterrupt:
+            console.print("\nUse 'exit' or 'quit' to leave.\n")
+
+        except EOFError:
+            console.print("\nGoodbye!")
+            break
+
+=== FILE: src\adityacli\cli\commands\version.py ===
+
+import typer
+
+
+def version() -> None:
+    """Display the current AdityaCLI version."""
+
+    typer.echo("AdityaCLI v2.0.0")
+
+=== FILE: src\adityacli\cli\commands\__init__.py ===
+
+"""CLI command implementations."""
+
+from .chat import chat
+from .doctor import doctor
+from .repl import repl
+from .version import version
+
+__all__ = [
+    "chat",
+    "doctor",
+    "repl",
+    "version",
+]
+
+=== FILE: src\adityacli\cli\ui\markdown.py ===
+
+from rich.markdown import Markdown
+
+
+def render_markdown(content: str) -> Markdown:
+    """Convert Markdown text into a Rich renderable."""
+
+    return Markdown(content)
+
+=== FILE: src\adityacli\cli\ui\panels.py ===
+
+from rich.panel import Panel
+
+
+def info_panel(renderable, title: str = "") -> Panel:
+    return Panel(
+        renderable,
+        title=title,
+        border_style="info",
+    )
+
+
+def success_panel(renderable, title: str = "") -> Panel:
+    return Panel(
+        renderable,
+        title=title,
+        border_style="success",
+    )
+
+
+def warning_panel(renderable, title: str = "") -> Panel:
+    return Panel(
+        renderable,
+        title=title,
+        border_style="warning",
+    )
+
+
+def error_panel(renderable, title: str = "") -> Panel:
+    return Panel(
+        renderable,
+        title=title,
+        border_style="error",
+    )
+
+=== FILE: src\adityacli\cli\ui\progress.py ===
+
+from rich.progress import Progress
+
+
+def create_progress() -> Progress:
+    """Create the standard AdityaCLI progress display."""
+
+    return Progress()
+
+=== FILE: src\adityacli\cli\ui\tables.py ===
+
+from rich.table import Table
+
+
+def create_table(
+    *columns: str,
+    title: str | None = None,
+) -> Table:
+    """Create a standard AdityaCLI table."""
+
+    table = Table(
+        title=title,
+        header_style="title",
+        show_lines=False,
+    )
+
+    for column in columns:
+        table.add_column(column)
+
+    return table
+
+=== FILE: src\adityacli\cli\ui\themes.py ===
+
+from rich.theme import Theme
+
+
+APP_THEME = Theme(
+    {
+        "info": "cyan",
+        "success": "green",
+        "warning": "yellow",
+        "error": "bold red",
+        "title": "bold blue",
+        "subtitle": "bold cyan",
+    }
+)
+
+=== FILE: src\adityacli\cli\ui\__init__.py ===
+
+"""Shared Rich UI components."""
+
+from .markdown import render_markdown
+from .panels import (
+    error_panel,
+    info_panel,
+    success_panel,
+    warning_panel,
+)
+from .progress import create_progress
+from .tables import create_table
+from .themes import APP_THEME
+
+__all__ = [
+    "APP_THEME",
+    "create_progress",
+    "create_table",
+    "render_markdown",
+    "info_panel",
+    "success_panel",
+    "warning_panel",
+    "error_panel",
+]
+
+=== FILE: src\adityacli\config\.env.example ===
+
+# ============================================
+# Provider
+# ============================================
+
+PROVIDER__DEFAULT_PROVIDER=lmstudio
+PROVIDER__DEFAULT_MODEL=qwen3.5
+
+# ============================================
+# LM Studio
+# ============================================
+
+LMSTUDIO__BASE_URL=http://127.0.0.1:1234/v1
+
+# ============================================
+# OpenAI
+# ============================================
+
+OPENAI_API_KEY=
+
+# ============================================
+# Anthropic
+# ============================================
+
+ANTHROPIC_API_KEY=
+
+# ============================================
+# Google
+# ============================================
+
+GOOGLE_API_KEY=
+
+# ============================================
+# Ollama
+# ============================================
+
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+
+# ============================================
+# Logging
+# ============================================
+
+LOGGING__LEVEL=INFO
+
+LMSTUDIO__TIMEOUT=60
+
+=== FILE: src\adityacli\config\constants.py ===
+
+"""Application-wide constants.
+
+Constants in this file are part of AdityaCLI's design.
+They are NOT configurable through environment variables.
+"""
+
+APP_NAME = "AdityaCLI"
+APP_VERSION = "2.0.0"
+
+SESSION_RETENTION_DAYS = 30
+
+SUPPORTED_PROVIDERS = (
+    "lmstudio",
+    "ollama",
+    "openai",
+    "anthropic",
+    "gemini",
+)
+
+=== FILE: src\adityacli\config\settings.py ===
+
+from pydantic import Field, BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class ProviderSettings(BaseModel):
+    """Configuration for the active LLM provider."""
+    default_provider: str = Field(
+        default="lmstudio",
+        description="Default LLM provider."
+    )
+    default_model: str = Field(
+        default="qwen3.5",
+        description="Default model identifier for the active provider."
+    )
+
+
+class LMStudioSettings(BaseModel):
+    """Configuration for the LM Studio provider."""
+    base_url: str = Field(
+        default="http://127.0.0.1:1234/v1",
+        description="Base URL of the LM Studio OpenAI-compatible API."
+    )
+    
+    timeout: int = Field(
+        default=60,
+        description="Request timeout in seconds."
+    )
+
+
+class LoggingSettings(BaseModel):
+    """Logging configuration"""
+    level: str = Field(
+        default="INFO",
+        description="Default log level."
+    )
+
+    @property
+    def log_level(self) -> int:
+        """Return the python logging level"""
+
+        import logging
+        return getattr(logging, self.level.upper(), logging.INFO)
+    
+
+
+class Settings(BaseSettings):
+    """Root configuration object for the AdityaCLI runtime."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_nested_delimiter="__",
+        extra="ignore",
+    )
+
+    provider: ProviderSettings = ProviderSettings()
+    lmstudio: LMStudioSettings = LMStudioSettings()
+    logging: LoggingSettings = LoggingSettings()
+
+
+settings = Settings()
+
+=== FILE: src\adityacli\config\__init__.py ===
+
+"""Configuration package."""
+
+from .settings import settings
+
+__all__ = ["settings"]
+
+=== FILE: src\adityacli\contracts\chat.py ===
+
+from typing import Literal
+from pydantic import BaseModel, Field
+from .tools import ToolCall
+
+
+class ChatMessage(BaseModel):
+    """A single chat message."""
+
+    role: Literal[
+        "system",
+        "user",
+        "assistant",
+        "tool",
+        "developer",
+    ]
+
+    content: str
+
+    tool_call_id: str | None = None
+
+    name: str | None = None
+
+    tool_calls: list[ToolCall] = Field(default_factory=list)
+
+=== FILE: src\adityacli\contracts\generation.py ===
+
+from pydantic import BaseModel, Field
+from .chat import ChatMessage
+from .tools import ToolDefinition
+
+class GenerationConfig(BaseModel):
+    """Generation parameters."""
+
+    temperature: float = 0.7
+    max_tokens: int = 4096
+    stream: bool = False
+
+
+class GenerationRequest(BaseModel):
+    """A request sent to a provider."""
+
+    messages: list[ChatMessage]
+    tools: list[ToolDefinition] = Field(default_factory=list)
+    config: GenerationConfig
+
+
+class GenerationResponse(BaseModel):
+    """A response returned by a provider."""
+
+    message: ChatMessage
+    model: str
+    finish_reason: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+
+=== FILE: src\adityacli\contracts\provider.py ===
+
+from pydantic import BaseModel
+
+
+class ModelInfo(BaseModel):
+    """Information describing a language model."""
+
+    id: str
+    name: str
+
+    context_window: int
+
+    quantization: str | None = None
+
+    estimated_ram_mb: int | None = None
+
+    supports_streaming: bool = True
+    supports_tools: bool = True
+    supports_grammar: bool = False
+
+
+class ProviderInfo(BaseModel):
+    """Information describing a provider."""
+
+    name: str
+
+    endpoint: str
+
+    online: bool = True
+
+=== FILE: src\adityacli\contracts\runtime.py ===
+
+from enum import Enum
+
+from pydantic import BaseModel
+
+
+class Intent(str, Enum):
+    """User intent identified by the Intent Router."""
+
+    FILESYSTEM = "filesystem"
+    TERMINAL = "terminal"
+    GIT = "git"
+    SEARCH = "search"
+    WEB = "web"
+    MCP = "mcp"
+    CODE_INTELLIGENCE = "code_intelligence"
+    HUMAN_INTERACTION = "human_interaction"
+
+    CHAT = "chat"
+    UNKNOWN = "unknown"
+
+
+class PipelineType(str, Enum):
+    """Execution pipeline selected by Runtime Intelligence."""
+
+    DETERMINISTIC = "deterministic"
+    SEMANTIC = "semantic"
+    REASONING = "reasoning"
+
+
+class ModelState(BaseModel):
+    """Current model information maintained by the Resource Manager."""
+
+    provider: str
+    model: str
+
+    quantization: str | None = None
+
+    context_window: int
+
+    estimated_ram_mb: int | None = None
+    available_ram_mb: int | None = None
+
+    supports_streaming: bool = True
+    supports_tools: bool = True
+    supports_grammar: bool = False
+
+
+class PipelineDecision(BaseModel):
+    """Decision produced by Runtime Intelligence."""
+
+    intent: Intent
+
+    pipeline: PipelineType
+
+    requires_llm: bool
+    requires_context: bool
+    requires_tools: bool
+
+
+class RuntimeRequest(BaseModel):
+    """Request entering the Runtime."""
+
+    user_input: str
+
+    workspace: str
+
+    provider: str
+
+
+class RuntimeResponse(BaseModel):
+    """Final Runtime response."""
+
+    success: bool = True
+
+    message: str
+
+    pipeline: PipelineType
+
+=== FILE: src\adityacli\contracts\tools.py ===
+
+from enum import Enum
+from typing import Any
+from pydantic import BaseModel, Field,ConfigDict
+from .tool_context import ToolExecutionContext
+from dataclasses import dataclass
+
+class ToolCategory(str, Enum):
+    """High-level tool categories."""
+
+    FILESYSTEM = "filesystem"
+    TERMINAL = "terminal"
+    GIT = "git"
+    SEARCH = "search"
+    WEB = "web"
+    MCP = "mcp"
+    CODE_INTELLIGENCE = "code_intelligence"
+    HUMAN_INTERACTION = "human_interaction"
+
+
+class PermissionType(str, Enum):
+    """Permissions required to execute a tool."""
+
+    READ = "read"
+    WRITE = "write"
+    EXECUTE = "execute"
+    NETWORK = "network"
+    GIT = "git"
+    MCP = "mcp"
+
+
+class ToolParameter(BaseModel):
+    """Definition of a tool parameter."""
+
+    name: str
+    type: str
+    description: str
+    required: bool = True
+
+
+class ToolDefinition(BaseModel):
+    """Metadata describing a tool."""
+
+    name: str
+
+    description: str
+
+    category: ToolCategory
+
+    permission: PermissionType
+
+    parameters: list[ToolParameter]
+
+
+class ToolCall(BaseModel):
+    """A tool call requested by the language model."""
+
+    id: str
+
+    name: str
+
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+
+@dataclass(slots=True)
+class ToolExecutionRequest:
+    """Request passed to a tool implementation."""
+
+    arguments: dict[str, Any]
+    context: ToolExecutionContext
+
+
+class ToolExecutionResult(BaseModel):
+    """Result returned by a tool."""
+
+    success: bool = True
+
+    content: str
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+=== FILE: src\adityacli\contracts\__init__.py ===
+
+
+=== FILE: src\adityacli\exceptions\base.py ===
+
+from __future__ import annotations
+from typing import Any
+
+
+class AdityaCLIError(Exception):
+    """Base exception for all AdityaCLI errors."""
+
+    ERROR_CODE = "UNKNOWN_ERROR"
+    DEFAULT_RECOVERY_HINT: str | None = None
+
+    def __init__(
+            self,
+            message: str,
+            *,
+            error_code: str | None = None,
+            recovery_hint: str | None = None,
+            cause: Exception | None = None,
+            metadata: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+
+        self.message = message
+        self.error_code = (
+            error_code 
+            or self.ERROR_CODE
+        )
+        self.recovery_hint = (
+            recovery_hint 
+            or self.DEFAULT_RECOVERY_HINT
+        )
+        self.cause = cause
+        self.metadata = metadata or {}
+
+=== FILE: src\adityacli\exceptions\common.py ===
+
+from .base import AdityaCLIError
+
+
+class RecoverableError(AdityaCLIError):
+    """Base class for errors that the agent may recover from."""
+
+
+class FatalError(AdityaCLIError):
+    """Base class for unrecoverable application errors."""
+
+=== FILE: src\adityacli\exceptions\configuration.py ===
+
+from .common import FatalError
+
+
+class ConfigurationError(FatalError):
+    """Application configuration is invalid."""
+
+=== FILE: src\adityacli\exceptions\provider.py ===
+
+from .common import RecoverableError
+
+
+class ProviderError(RecoverableError):
+    """Base class for provider-related errors."""
+
+   
+class ProviderOfflineError(ProviderError):
+    """Provider is unreachable."""
+
+    ERROR_CODE = "PROVIDER_OFFLINE"
+
+    DEFAULT_RECOVERY_HINT = (
+        "Ensure the provider is running and reachable."
+    )
+
+
+class ProviderTimeoutError(ProviderError):
+    """Provider request timed out."""
+
+    ERROR_CODE = "PROVIDER_TIMEOUT"
+
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request or increase the timeout."
+    )
+
+
+class ProviderAuthenticationError(ProviderError):
+    """Authentication with the provider failed."""
+
+    ERROR_CODE = "PROVIDER_AUTHENTICATION"
+
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the configured API credentials."
+    )
+
+
+class ProviderRateLimitError(ProviderError):
+    """Provider rate limit exceeded."""
+
+    ERROR_CODE = "PROVIDER_RATE_LIMIT"
+
+    DEFAULT_RECOVERY_HINT = (
+        "Wait before retrying or reduce request frequency."
+    )
+
+
+class ModelNotFoundError(ProviderError):
+    """Requested model does not exist."""
+
+    ERROR_CODE = "MODEL_NOT_FOUND"
+
+    DEFAULT_RECOVERY_HINT = (
+        "Select an available model."
+    )
+    
+
+class InvalidProviderResponseError(ProviderError):
+    """Provider returned an invalid or unexpected response."""
+
+    ERROR_CODE = "INVALID_PROVIDER_RESPONSE"
+
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request or inspect the provider logs."
+    )
+
+=== FILE: src\adityacli\exceptions\session.py ===
+
+from .common import RecoverableError
+
+
+class SessionError(RecoverableError):
+    """Base class for session-related errors."""
+
+=== FILE: src\adityacli\exceptions\startup.py ===
+
+from .common import FatalError
+
+
+class StartupError(FatalError):
+    """Application failed during startup."""
+
+
+class InternalError(FatalError):
+    """Unexpected internal application failure."""
+
+=== FILE: src\adityacli\exceptions\tool.py ===
+
+from .common import RecoverableError
+
+
+class ToolError(RecoverableError):
+    """Base class for tool-related errors."""
+
+=== FILE: src\adityacli\exceptions\workspace.py ===
+
+from .common import RecoverableError
+
+
+class WorkspaceError(RecoverableError):
+    """Base class for workspace-related errors."""
+
+=== FILE: src\adityacli\exceptions\__init__.py ===
+
+from .base import AdityaCLIError
+
+from .common import (
+    RecoverableError,
+    FatalError,
+)
+
+from .provider import (
+    ProviderError,
+    ProviderOfflineError,
+    ProviderTimeoutError,
+    ProviderAuthenticationError,
+    ProviderRateLimitError,
+    ModelNotFoundError,
+    InvalidProviderResponseError,
+)
+from .tool import ToolError
+from .workspace import WorkspaceError
+from .session import SessionError
+
+from .configuration import ConfigurationError
+
+from .startup import (
+    StartupError,
+    InternalError,
+)
+
+__all__ = [
+    "AdityaCLIError",
+    "RecoverableError",
+    "FatalError",
+    "ToolError",
+    "WorkspaceError",
+    "SessionError",
+    "ConfigurationError",
+    "StartupError",
+    "InternalError",
+    "ProviderError",
+    "ProviderOfflineError",
+    "ProviderTimeoutError",
+    "ProviderAuthenticationError",
+    "ProviderRateLimitError",
+    "ModelNotFoundError",
+    "InvalidProviderResponseError",
+]
+
+
+=== FILE: src\adityacli\logging\formatters.py ===
+
+import logging
+
+def get_default_formatter() -> logging.Formatter:
+    """Formatter used for log files."""
+
+    return logging.Formatter(
+        fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
+def get_console_formatter() -> logging.Formatter:
+    """Formatter used for console output."""
+
+    return logging.Formatter(
+        fmt="[%(levelname)s] %(message)s"
+    )
+
+
+def get_json_formatter() -> logging.Formatter:
+    """Placeholder for future JSON logging."""
+
+    raise NotImplementedError("JSON formatter is not implemented yet.")
+
+
+
+=== FILE: src\adityacli\logging\handlers.py ===
+
+import sys
+import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from .formatters import (
+    get_default_formatter,
+    get_console_formatter,
+    get_json_formatter
+)
+
+
+
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+def create_file_handler(name: str) -> RotatingFileHandler:
+    """Create a file handler for a subsystem logger."""
+
+    log_file = LOG_DIR / f"{name}.log"
+
+    handler = RotatingFileHandler(
+        filename=log_file,
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8"
+    )
+
+    handler.setFormatter(get_default_formatter())
+
+    return handler
+
+
+
+_console_handler: logging.StreamHandler | None = None
+
+def create_console_handler() -> logging.StreamHandler:
+    """Create a console handler."""
+
+    global _console_handler
+
+    if _console_handler is not None:
+        return _console_handler
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(get_console_formatter())
+
+    _console_handler = handler
+
+    return handler
+
+
+_error_handler: logging.FileHandler | None = None
+
+def create_error_handler() -> logging.FileHandler:
+    """Return the shared error log hadnler."""\
+    
+    global _error_handler
+
+    if _error_handler is not None:
+        return _error_handler
+    
+    log_file = LOG_DIR / "error.log"
+
+    handler = logging.FileHandler(
+        filename=log_file,
+        encoding="utf-8",
+    )
+
+    handler.setLevel(logging.ERROR)
+
+    handler.setFormatter(get_default_formatter())
+
+    _error_handler = handler
+
+    return handler
+
+
+
+
+=== FILE: src\adityacli\logging\manager.py ===
+
+import logging
+from .handlers import (
+    create_file_handler,
+    create_console_handler,
+    create_error_handler
+)
+from adityacli.config import settings
+
+class LoggerManager:
+    """Central manager responsible for creating and caching loggers."""
+
+    def __init__(self) -> None:
+        self._loggers: dict[str, logging.Logger] ={}
+
+    def get_logger(self, name: str) -> logging.Logger:
+        """Return a configured logger for the given subssystem."""
+
+        if name in self._loggers:
+            return self._loggers[name]
+        
+        logger = logging.getLogger(f"adityacli.{name}")
+
+        logger.setLevel(settings.logging.log_level)
+        logger.propagate = False
+
+        logger.addHandler(create_file_handler(name))
+        logger.addHandler(create_console_handler())
+        logger.addHandler(create_error_handler())
+
+        self._loggers[name] = logger
+
+        return logger
+    
+_manager = LoggerManager()
+
+def get_logger(name: str) -> logging.Logger:
+    """Return a subsystem logger."""
+    return _manager.get_logger(name)
+
+=== FILE: src\adityacli\logging\__init__.py ===
+
+from .manager import get_logger
+
+__all__ = ["get_logger"]
+
+=== FILE: src\adityacli\mcp\constants.py ===
+
+
+=== FILE: src\adityacli\mcp\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+class MCPError(RecoverableError):
+    """Base class for all MCP-related errors."""
+
+class MCPConnectionError(MCPError):
+    ERROR_CODE = "MCP_CONNECTION"
+    DEFAULT_RECOVERY_HINT = (
+        "Ensure the MCP server is running and reachable."
+    )
+
+class MCPExecutionError(MCPError):
+    ERROR_CODE = "MCP_EXECUTION"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request."
+    )
+
+class MCPServerNotFoundError(MCPError):
+    ERROR_CODE = "MCP_SERVER_NOT_FOUND"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the configured MCP server."
+    )
+
+class MCPProtocolError(MCPError):
+    ERROR_CODE = "MCP_PROTOCOL"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the MCP protocol implementation."
+    )
+
+class MCPTimeoutError(MCPError):
+    ERROR_CODE = "MCP_TIMEOUT"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request or increase the timeout."
+    )
+
+=== FILE: src\adityacli\mcp\interface.py ===
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+
+from .models import (
+    MCPRequest,
+    MCPResponse,
+    MCPServerInfo,
+)
+
+class MCPInterface(ABC):
+    """Contract implemented by every MCP client."""
+
+    @abstractmethod
+    def info(self) -> MCPServerInfo:
+        """Return MCP server metadata."""
+        ...
+
+    @abstractmethod
+    def connect(self) -> None:
+        """Connect to the MCP server."""
+        ...
+
+    @abstractmethod
+    def disconnect(self) -> None:
+        """Disconnect from the MCP server."""
+        ...
+
+    @abstractmethod
+    def execute(
+        self,
+        request: MCPRequest,
+    ) -> MCPResponse:
+        """Execute an MCP request."""
+        ...
+
+=== FILE: src\adityacli\mcp\manager.py ===
+
+from __future__ import annotations
+
+from .interface import MCPInterface
+from .models import (
+    MCPRequest,
+    MCPResponse,
+)
+from .registry import MCPRegistry
+
+
+class MCPManager:
+    """Manage MCP client lifecycle."""
+
+    def __init__(
+        self,
+        registry: MCPRegistry,
+    ) -> None:
+        self._registry = registry
+        self._client: MCPInterface | None = None
+
+    
+    @property
+    def client(self) -> MCPInterface | None:
+        """Return the active MCP client."""
+
+        return self._client
+    
+
+    def connect(
+        self,
+        name: str,
+    ) -> None:
+        """Connect to an MCP client."""
+
+        if self._client is not None:
+            self._client.disconnect()
+
+        client = self._registry.create(name)
+
+        client.connect()
+
+        self._client = client
+
+
+    def disconnect(self) -> None:
+        """Disconnect the active MCP client."""
+
+        if self._client is None:
+            return
+
+        self._client.disconnect()
+
+        self._client = None
+
+    
+    def execute(
+        self,
+        request: MCPRequest,
+    ) -> MCPResponse:
+        """Execute an MCP request."""
+
+        if self._client is None:
+            raise RuntimeError(
+                "No active MCP client."
+            )
+
+        return self._client.execute(request)
+
+=== FILE: src\adityacli\mcp\models.py ===
+
+from __future__ import annotations
+
+from pydantic import BaseModel
+
+class MCPServer(BaseModel):
+    """Represents an MCP server."""
+
+    name: str
+
+class MCPServerInfo(BaseModel):
+    """Metadata about an MCP server."""
+
+    name: str
+    description: str
+
+class MCPRequest(BaseModel):
+    """MCP request."""
+
+    tool: str
+    arguments: dict[str, object]
+
+class MCPResponse(BaseModel):
+    """MCP response."""
+
+    success: bool
+    output: str | None = None
+    error: str | None = None
+
+
+
+=== FILE: src\adityacli\mcp\registry.py ===
+
+from __future__ import annotations
+
+from .interface import MCPInterface
+
+class MCPRegistry:
+    """Registry of available MCP client implementations."""
+
+    def __init__(self) -> None:
+        self._clients: dict[str, type[MCPInterface]] = {}
+
+    def register(
+        self,
+        name: str,
+        client_class: type[MCPInterface],
+    ) -> None:
+        """Register an MCP client."""
+
+        if name in self._clients:
+            raise ValueError(
+                f"MCP client '{name}' is already registered."
+            )
+
+        self._clients[name] = client_class
+
+    
+
+    def unregister(self, name: str) -> None:
+        """Unregister an MCP client."""
+
+        if not self.exists(name):
+            raise ValueError(
+                f"MCP client '{name}' is not registered."
+            )
+
+        del self._clients[name]
+
+    
+    def exists(self, name: str) -> bool:
+        """Return whether an MCP client is registered."""
+
+        return name in self._clients
+    
+
+    def create(self, name: str) -> MCPInterface:
+        """Create an MCP client instance."""
+
+        if not self.exists(name):
+            raise ValueError(
+                f"MCP client '{name}' is not registered."
+            )
+
+        client_class = self._clients[name]
+
+        return client_class()
+    
+
+    def list_clients(self) -> list[str]:
+        """Return all registered MCP clients."""
+
+        return sorted(self._clients.keys())
+
+=== FILE: src\adityacli\mcp\types.py ===
+
+
+=== FILE: src\adityacli\mcp\utils.py ===
+
+
+=== FILE: src\adityacli\mcp\__init__.py ===
+
+from .interface import MCPInterface
+from .manager import MCPManager
+from .registry import MCPRegistry
+
+from .models import (
+    MCPServer,
+    MCPServerInfo,
+    MCPRequest,
+    MCPResponse,
+)
+
+from .clients.stdio import StdioMCPClient
+
+__all__ = [
+    "MCPInterface",
+    "MCPManager",
+    "MCPRegistry",
+    "MCPServer",
+    "MCPServerInfo",
+    "MCPRequest",
+    "MCPResponse",
+    "StdioMCPClient",
+]
+
+=== FILE: src\adityacli\mcp\clients\stdio.py ===
+
+from __future__ import annotations
+
+from ..interface import MCPInterface
+from ..models import (
+    MCPRequest,
+    MCPResponse,
+    MCPServerInfo,
+)
+
+class StdioMCPClient(MCPInterface):
+    """MCP client using stdio transport."""
+
+    def __init__(self) -> None:
+        self._connected = False
+
+    def info(self) -> MCPServerInfo:
+        """Return MCP server metadata."""
+
+        return MCPServerInfo(
+            name="stdio",
+            description="MCP client using stdio transport.",
+        )
+    
+    def connect(self) -> None:
+        """Connect to the MCP server."""
+
+        self._connected = True
+
+    def disconnect(self) -> None:
+        """Disconnect from the MCP server."""
+
+        self._connected = False
+
+    def execute(
+        self,
+        request: MCPRequest,
+    ) -> MCPResponse:
+        """Execute an MCP request."""
+
+        raise NotImplementedError
+
+=== FILE: src\adityacli\provider\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+class ProviderError(RecoverableError):
+    """Base class for all provider-related errors."""
+
+class ProviderOfflineError(ProviderError):
+    ERROR_CODE = "PROVIDER_OFFLINE"
+    DEFAULT_RECOVERY_HINT = (
+        "Ensure the provider is running and reachable."
+    )
+
+class ProviderTimeoutError(ProviderError):
+    ERROR_CODE = "PROVIDER_TIMEOUT"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request or increase the timeout."
+    )
+
+class ProviderAuthenticationError(ProviderError):
+    ERROR_CODE = "PROVIDER_AUTHENTICATION"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the configured credentials."
+    )
+
+class ProviderRateLimitError(ProviderError):
+    ERROR_CODE = "PROVIDER_RATE_LIMIT"
+    DEFAULT_RECOVERY_HINT = (
+        "Wait before retrying or reduce request frequency."
+    )
+
+class ModelNotFoundError(ProviderError):
+    ERROR_CODE = "MODEL_NOT_FOUND"
+    DEFAULT_RECOVERY_HINT = (
+        "Select an available model."
+    )
+
+class InvalidProviderResponseError(ProviderError):
+    ERROR_CODE = "INVALID_PROVIDER_RESPONSE"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the request or inspect the provider logs."
+    )
+
+=== FILE: src\adityacli\provider\interface.py ===
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from collections.abc import Iterator
+
+from adityacli.contracts.generation import (
+    GenerationRequest,
+    GenerationResponse,
+)
+from adityacli.contracts.provider import (
+    ModelInfo,
+    ProviderInfo,
+)
+
+
+class ProviderInterface(ABC):
+    """Contract implemented by every provider."""
+
+    @abstractmethod
+    def initialize(self) -> None:
+        """Initialize the provider."""
+
+    @abstractmethod
+    def shutdown(self) -> None:
+        """Shutdown the provider."""
+
+    @abstractmethod
+    def health_check(self) -> bool:
+        """Return whether the provider is available."""
+
+    @abstractmethod
+    def provider_info(self) -> ProviderInfo:
+        """Return provider information."""
+
+    @abstractmethod
+    def list_models(self) -> list[ModelInfo]:
+        """Return all available models."""
+
+    @abstractmethod
+    def model_info(self) -> ModelInfo:
+        """Return information about the currently loaded model."""
+
+    @abstractmethod
+    def load_model(self, model: str) -> None:
+        """Load or activate a model."""
+
+    @abstractmethod
+    def generate(
+        self,
+        request: GenerationRequest,
+    ) -> GenerationResponse:
+        """Generate a complete response."""
+
+    @abstractmethod
+    def generate_stream(
+        self,
+        request: GenerationRequest,
+    ) -> Iterator[str]:
+        """Generate a streamed response."""
+
+=== FILE: src\adityacli\provider\manager.py ===
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+
+from adityacli.contracts.generation import (
+    GenerationRequest,
+    GenerationResponse,
+)
+from adityacli.contracts.provider import (
+    ModelInfo,
+    ProviderInfo,
+)
+
+from .interface import ProviderInterface
+from .registry import ProviderRegistry
+
+
+class ProviderManager:
+    """Manage provider lifecycle and active provider."""
+
+    def __init__(self, registry: ProviderRegistry) -> None:
+        self._registry = registry
+        self._active_provider: ProviderInterface | None = None
+
+    @property
+    def provider(self) -> ProviderInterface:
+        """Return the active provider."""
+
+        if self._active_provider is None:
+            raise RuntimeError("No active provider.")
+
+        return self._active_provider
+
+    @property
+    def active_provider(self) -> ProviderInterface | None:
+        """
+        Backward-compatible accessor.
+
+        Returns None when no provider is active.
+        """
+
+        return self._active_provider
+
+
+    def switch_provider(self, name: str) -> None:
+        """Switch the active provider."""
+
+        if self._active_provider is not None:
+            self._active_provider.shutdown()
+
+        provider = self._registry.create(name)
+
+        provider.initialize()
+
+        self._active_provider = provider
+
+    def health_check(self) -> bool:
+        """Return whether the active provider is healthy."""
+
+        if self._active_provider is None:
+            return False
+
+        return self.provider.health_check()
+
+    def provider_info(self) -> ProviderInfo:
+        """Return information about the active provider."""
+
+        return self.provider.provider_info()
+
+    def list_models(self) -> list[ModelInfo]:
+        return self.provider.list_models()
+
+
+    def model_info(self) -> ModelInfo:
+        return self.provider.model_info()
+
+
+    def load_model(self, model: str) -> None:
+        self.provider.load_model(model)
+
+
+    def generate(
+        self,
+        request: GenerationRequest,
+    ) -> GenerationResponse:
+        return self.provider.generate(request)
+
+
+    def generate_stream(
+        self,
+        request: GenerationRequest,
+    ) -> Iterator[str]:
+        yield from self.provider.generate_stream(request)
+
+=== FILE: src\adityacli\provider\registry.py ===
+
+from __future__ import annotations
+
+from .interface import ProviderInterface
+
+
+class ProviderRegistry:
+    """Registry of available provider implementations."""
+
+    def __init__(self) -> None:
+        self._providers: dict[str, type[ProviderInterface]] = {}
+    
+    def register(
+            self,
+            name: str,
+            provider_class: type[ProviderInterface],
+    ) -> None:
+        """Register a provider implementation."""
+
+        if name in self._providers:
+            raise ValueError(f"Provider '{name}' is already registered.")
+        
+        self._providers[name] = provider_class
+
+    def exists(self, name: str) -> bool:
+        """Return whether a provider is registered"""
+
+        return name in self._providers
+    
+    def create(self, name: str) -> ProviderInterface:
+        """Create a provider instance."""
+
+        if not self.exists(name):
+            raise ValueError(f"Provider '{name}' is not registered.")
+        
+        provider_class = self._providers[name]
+
+        return provider_class()
+    
+    def unregister(self, name: str) -> None:
+        """Unregister a provider implementation."""
+
+        if not self.exists(name):
+            raise ValueError(f"Provider '{name}' is not registered.")
+        
+        del self._providers[name]
+
+    def list_providers(self) -> list[str]:
+        """Return all registered provider names."""
+
+        return sorted(self._providers.keys())
+
+=== FILE: src\adityacli\provider\__init__.py ===
+
+from .interface import ProviderInterface
+
+from .manager import ProviderManager
+from .registry import ProviderRegistry
+
+
+from .providers.lmstudio import LMStudioProvider
+
+__all__ = [
+    "ProviderInterface",
+    "ProviderManager",
+    "ProviderRegistry",
+    "LMStudioProvider",
+]
+
+=== FILE: src\adityacli\provider\providers\lmstudio.py ===
+
+from __future__ import annotations
+
+import json
+from collections.abc import Iterator
+from typing import Any, cast
+
+from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
+
+from adityacli.config import settings
+from adityacli.contracts.chat import ChatMessage
+from adityacli.contracts.generation import (
+    GenerationRequest,
+    GenerationResponse,
+)
+from adityacli.contracts.provider import (
+    ModelInfo,
+    ProviderInfo,
+)
+from adityacli.contracts.tools import (
+    ToolCall,
+    ToolDefinition,
+)
+
+from ..exceptions import (
+    InvalidProviderResponseError,
+    ModelNotFoundError,
+    ProviderOfflineError,
+)
+from ..interface import ProviderInterface
+
+
+
+class LMStudioProvider(ProviderInterface):
+    """LM Studio provider implementation."""
+
+
+    def __init__(self) -> None:
+        self._base_url = settings.lmstudio.base_url
+        self._timeout = settings.lmstudio.timeout
+
+        self._client: OpenAI | None = None
+
+        self._model: str | None = None
+        self._model_info: ModelInfo | None = None
+
+        self._initialized = False
+
+
+    def initialize(self) -> None:
+        """Initialize the LM Studio client."""
+
+        self._client = OpenAI(
+            base_url=self._base_url,
+            api_key="lm-studio",
+            timeout=self._timeout,
+        )
+
+        self._initialized = True
+    
+
+    def health_check(self) -> bool:
+        """Return whether the provider is reachable."""
+
+        if self._client is None:
+            return False
+
+        try:
+            self._client.models.list()
+            return True
+        except Exception:
+            return False
+    
+
+    def provider_info(self) -> ProviderInfo:
+        """Return provider information."""
+
+        return ProviderInfo(
+            name="LM Studio",
+            endpoint=self._base_url,
+            online=self.health_check(),
+        )
+    
+
+    def list_models(self) -> list[ModelInfo]:
+        """Return all available models."""
+
+        if self._client is None:
+            raise ProviderOfflineError("Provider Offline")
+
+        try:
+            models = self._client.models.list()
+
+            return [
+                ModelInfo(
+                    id=model.id,
+                    name=model.id,
+                    context_window=0,
+                    quantization=None,
+                    estimated_ram_mb=None,
+                    supports_streaming=True,
+                    supports_tools=True,
+                    supports_grammar=False,
+                )
+                for model in models.data
+            ]
+
+        except Exception as exc:
+            raise InvalidProviderResponseError("Invalid Response") from exc
+    
+
+    def model_info(self) -> ModelInfo:
+        """Return information about the active model."""
+
+        if self._model_info is None:
+            raise ModelNotFoundError("Model not found")
+
+        return self._model_info
+
+    
+    def load_model(self, model: str) -> None:
+        """Load a model."""
+
+        self._model = model
+
+        self._model_info = ModelInfo(
+            id=model,
+            name=model,
+            context_window=0,
+            quantization=None,
+            estimated_ram_mb=None,
+            supports_streaming=True,
+            supports_tools=True,
+            supports_grammar=False,
+        )
+
+
+    def generate(
+        self,
+        request: GenerationRequest,
+    ) -> GenerationResponse:
+        """Generate a complete response."""
+
+        if self._client is None:
+            raise ProviderOfflineError("Provider is Offline.")
+
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": self._build_messages(request),
+            "temperature": request.config.temperature,
+            "max_tokens": request.config.max_tokens,
+            "stream": False,
+        }
+
+        if request.tools:
+            kwargs["tools"] = self._build_tools(request.tools)
+
+        try:
+            response = self._client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            raise InvalidProviderResponseError("invalid Provider Response.") from exc
+
+        message = response.choices[0].message
+
+
+        content = message.content or ""
+
+        tool_calls: list[ToolCall] = []
+
+        if message.tool_calls:
+            for call in message.tool_calls:
+                try:
+                    arguments = json.loads(call.function.arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+
+                tool_calls.append(
+                    ToolCall(
+                        id=call.id,
+                        name=call.function.name,
+                        arguments=arguments,
+                    )
+                )
+
+        return GenerationResponse(
+            message=ChatMessage(
+                role="assistant",
+                content=content,
+                tool_calls=tool_calls,
+            ),
+            model=response.model,
+            finish_reason=response.choices[0].finish_reason,
+            input_tokens=response.usage.prompt_tokens if response.usage else None,
+            output_tokens=response.usage.completion_tokens if response.usage else None,
+        )
+    
+
+    def generate_stream(
+        self,
+        request: GenerationRequest,
+    ) -> Iterator[str]:
+        """Generate a streamed response."""
+
+        if self._client is None:
+            raise ProviderOfflineError("Provider is Offline.")
+
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": self._build_messages(request),
+            "temperature": request.config.temperature,
+            "max_tokens": request.config.max_tokens,
+            "stream": True,
+        }
+
+        if request.tools:
+            kwargs["tools"] = self._build_tools(request.tools)
+
+        try:
+            stream = self._client.chat.completions.create(**kwargs)
+        except Exception as exc:
+                    raise InvalidProviderResponseError("invalid Provider Response.") from exc
+        
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+
+            if delta:
+                yield delta
+    
+
+    def _build_messages(
+        self,
+        request: GenerationRequest,
+    ) -> list[ChatCompletionMessageParam]:
+        messages: list[ChatCompletionMessageParam] = []
+
+        for message in request.messages:
+            msg = {
+                "role": message.role,
+                "content": message.content,
+            }
+
+            if message.name:
+                msg["name"] = message.name
+
+            if message.tool_call_id:
+                msg["tool_call_id"] = message.tool_call_id
+
+            messages.append(cast(ChatCompletionMessageParam, msg))
+
+        return messages
+    
+
+    def _build_tools(
+        self,
+        tools: list[ToolDefinition],
+    ) -> list[dict[str, Any]]:
+        """Convert ToolDefinition objects into OpenAI tool schema."""
+
+        schemas: list[dict[str, Any]] = []
+
+        for tool in tools:
+            properties: dict[str, Any] = {}
+            required: list[str] = []
+
+            for parameter in tool.parameters:
+                properties[parameter.name] = {
+                    "type": parameter.type,
+                    "description": parameter.description,
+                }
+
+                if parameter.required:
+                    required.append(parameter.name)
+
+            schemas.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": {
+                            "type": "object",
+                            "properties": properties,
+                            "required": required,
+                        },
+                    },
+                }
+            )
+
+        return schemas
+
+
+    def shutdown(self) -> None:
+        """Shutdown the provider."""
+
+        self._client = None
+
+        self._model = None
+        self._model_info = None
+
+        self._initialized = False
+
+=== FILE: src\adityacli\runtime\constants.py ===
+
+from __future__ import annotations
+
+# ============================================================================
+# Context Budget
+# ============================================================================
+
+SYSTEM_PROMPT_RESERVE = 2_000
+
+CONVERSATION_HISTORY_RESERVE = 8_000
+
+MODEL_RESPONSE_RESERVE = 12_000
+
+MIN_CONTEXT_BUDGET = 4_096
+
+CHARACTERS_PER_TOKEN = 4
+
+
+# ============================================================================
+# Intent Router
+# ============================================================================
+
+INTENT_CONFIDENCE = 1.00
+
+SEMANTIC_CONFIDENCE = 0.80
+
+REASONING_CONFIDENCE = 0.90
+
+AMBIGUOUS_CONFIDENCE = 0.00
+
+=== FILE: src\adityacli\runtime\context_builder.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from adityacli.workspace import WorkspaceManager
+
+from .constants import CHARACTERS_PER_TOKEN
+
+
+class ContextBuilder:
+    """Build deterministic context for language models."""
+
+    def __init__(
+        self,
+        workspace_manager: WorkspaceManager,
+    ) -> None:
+        self._workspace = workspace_manager
+
+    def build_file_context(
+        self,
+        path: Path,
+        context_budget: int,
+    ) -> str:
+        """Build context from a workspace file."""
+
+        file_path = self._workspace.resolve(path)
+
+        content = file_path.read_text(
+            encoding="utf-8",
+            errors="ignore",
+        )
+
+        character_budget = (
+            context_budget
+            * CHARACTERS_PER_TOKEN
+        )
+
+        return content[:character_budget]
+
+    def build_workspace_context(
+        self,
+        context_budget: int,
+    ) -> str:
+        """Build workspace-level context."""
+
+        raise NotImplementedError()
+
+    def build_project_context(
+        self,
+        context_budget: int,
+    ) -> str:
+        """Build project context."""
+
+        raise NotImplementedError()
+
+    def build_search_context(
+        self,
+        text: str,
+        context_budget: int,
+    ) -> str:
+        """Reduce arbitrary text."""
+
+        character_budget = (
+            context_budget
+            * CHARACTERS_PER_TOKEN
+        )
+
+        return text[:character_budget]
+
+=== FILE: src\adityacli\runtime\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+
+class RuntimeError(RecoverableError):
+    """Base runtime exception."""
+
+
+class IntentRoutingError(RuntimeError):
+    ERROR_CODE = "INTENT_ROUTING"
+
+
+class ResourceUnavailableError(RuntimeError):
+    ERROR_CODE = "RESOURCE_UNAVAILABLE"
+
+
+class PipelineDispatchError(RuntimeError):
+    ERROR_CODE = "PIPELINE_DISPATCH"
+
+
+class ContextBuilderError(RuntimeError):
+    ERROR_CODE = "CONTEXT_BUILDER"
+
+
+class PromptBuilderError(RuntimeError):
+    ERROR_CODE = "PROMPT_BUILDER"
+
+=== FILE: src\adityacli\runtime\execution_coordinator.py ===
+
+
+=== FILE: src\adityacli\runtime\grammar_manager.py ===
+
+
+=== FILE: src\adityacli\runtime\intent_router.py ===
+
+from __future__ import annotations
+
+import re
+
+from .models import (
+    IntentResult,
+    IntentType,
+    PipelineType,
+)
+
+
+class IntentRouter:
+    """Deterministically classify user requests."""
+
+    _FILESYSTEM_READ = (
+        r"\bread\b",
+        r"\bopen\b",
+        r"\bcat\b",
+        r"\bshow\b",
+        r"\bdisplay\b",
+    )
+
+    _FILESYSTEM_WRITE = (
+        r"\bwrite\b",
+        r"\bcreate\b",
+        r"\bsave\b",
+    )
+
+    _FILESYSTEM_EDIT = (
+        r"\bedit\b",
+        r"\breplace\b",
+        r"\bmodify\b",
+        r"\bupdate\b",
+    )
+
+    _SEARCH = (
+        r"\bfind\b",
+        r"\bsearch\b",
+        r"\blocate\b",
+    )
+
+    _TERMINAL = (
+        r"\brun\b",
+        r"\bexecute\b",
+    )
+
+    _GIT = (
+        r"\bgit\b",
+        r"\bcommit\b",
+        r"\bbranch\b",
+        r"\bcheckout\b",
+        r"\bmerge\b",
+        r"\bpull\b",
+        r"\bpush\b",
+        r"\bstatus\b",
+        r"\bdiff\b",
+        r"\blog\b",
+    )
+
+    _SEMANTIC = (
+        "explain",
+        "summarize",
+        "describe",
+        "what",
+        "why",
+        "how",
+    )
+
+    _REASONING = (
+        "analyze",
+        "analyse",
+        "plan",
+        "design",
+        "architect",
+        "implement",
+        "build",
+        "refactor",
+        "optimize",
+        "debug",
+        "solve",
+    )
+
+    def route(
+        self,
+        prompt: str,
+    ) -> IntentResult:
+        """Classify a request without using an LLM."""
+
+        text = prompt.lower().strip()
+
+        if self._matches(text, self._FILESYSTEM_READ):
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="read_file",
+                confidence=1.0,
+            )
+
+        if self._matches(text, self._FILESYSTEM_WRITE):
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="write_file",
+                confidence=1.0,
+            )
+
+        if self._matches(text, self._FILESYSTEM_EDIT):
+            return IntentResult(
+                intent=IntentType.FILESYSTEM,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="edit_file",
+                confidence=1.0,
+            )
+
+        if self._matches(text, self._SEARCH):
+            return IntentResult(
+                intent=IntentType.SEARCH,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="workspace_search",
+                confidence=1.0,
+            )
+
+        if self._matches(text, self._TERMINAL):
+            return IntentResult(
+                intent=IntentType.TERMINAL,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="terminal",
+                confidence=1.0,
+            )
+
+        if self._matches(text, self._GIT):
+            return IntentResult(
+                intent=IntentType.GIT,
+                pipeline=PipelineType.DETERMINISTIC,
+                tool_name="git_status",
+                confidence=1.0,
+            )
+
+        if any(keyword in text for keyword in self._REASONING):
+            return IntentResult(
+                intent=IntentType.REASONING,
+                pipeline=PipelineType.REASONING,
+                confidence=0.95,
+            )
+
+        if any(keyword in text for keyword in self._SEMANTIC):
+            return IntentResult(
+                intent=IntentType.SEMANTIC,
+                pipeline=PipelineType.SEMANTIC,
+                confidence=0.90,
+            )
+
+        return IntentResult(
+            intent=IntentType.AMBIGUOUS,
+            confidence=0.0,
+        )
+
+    @staticmethod
+    def _matches(
+        text: str,
+        patterns: tuple[str, ...],
+    ) -> bool:
+        return any(
+            re.search(pattern, text)
+            for pattern in patterns
+        )
+
+=== FILE: src\adityacli\runtime\manager.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from adityacli.agent import (
+    AgentManager,
+    AgentRequest,
+)
+from adityacli.contracts.tool_context import ToolExecutionContext
+from adityacli.contracts.tools import ToolExecutionRequest
+from adityacli.provider import ProviderManager
+from adityacli.tool import ToolManager
+from adityacli.workspace import WorkspaceManager
+from adityacli.security import SecurityManager
+
+from .context_builder import ContextBuilder
+from .intent_router import IntentRouter
+from .pipeline_dispatcher import PipelineDispatcher
+from .prompt_manager import PromptManager
+from .resource_manager import ResourceManager
+from .models import (
+    IntentType,
+    PipelineType,
+    RuntimeResponse,
+)
+from .parser import RuntimeParser
+
+class RuntimeManager:
+    """Runtime-first execution manager."""
+
+    def __init__(
+        self,
+        provider_manager: ProviderManager,
+        tool_manager: ToolManager,
+        workspace_manager: WorkspaceManager,
+        security_manager: SecurityManager,
+        agent_manager: AgentManager,
+    ) -> None:
+        self._provider_manager = provider_manager
+        self._tool_manager = tool_manager
+        self._workspace_manager = workspace_manager
+        self._security_manager = security_manager
+        self._agent_manager = agent_manager
+
+        self._resource_manager = ResourceManager(
+            provider_manager,
+        )
+
+        self._intent_router = IntentRouter()
+
+        self._pipeline_dispatcher = PipelineDispatcher()
+
+        self._context_builder = ContextBuilder(
+            workspace_manager,
+        )
+
+        self._prompt_manager = PromptManager()
+        self._parser = RuntimeParser()
+
+    def execute(
+        self,
+        prompt: str,
+    ) -> RuntimeResponse:
+        """Execute a user request."""
+
+        self._resource_manager.validate()
+
+        intent = self._intent_router.route(prompt)
+
+        pipeline = self._pipeline_dispatcher.dispatch(
+            intent,
+        )
+
+        if pipeline is PipelineType.DETERMINISTIC:
+            return self._execute_deterministic(
+                prompt,
+                intent.tool_name,
+                intent.intent,
+            )
+
+        return self._execute_agent(prompt)
+
+    def _execute_agent(
+        self,
+        prompt: str,
+    ) -> RuntimeResponse:
+        """Forward semantic/reasoning requests to the default agent."""
+
+        response = self._agent_manager.execute(
+            AgentRequest(
+                prompt=prompt,
+            )
+        )
+
+        return RuntimeResponse(
+            content=response.response,
+        )
+
+    def _execute_deterministic(
+        self,
+        prompt: str,
+        tool_name: str | None,
+        intent: IntentType,
+    ) -> RuntimeResponse:
+        """Execute deterministic requests."""
+
+        if tool_name is None:
+            return self._execute_agent(prompt)
+
+        plan = self._parser.parse(
+            tool_name,
+            prompt,
+        )
+
+        if plan.empty:
+            return RuntimeResponse(
+                content="Nothing to execute.",
+            )
+
+        output: list[str] = []
+
+        for step in plan.steps:
+
+            result = self._tool_manager.execute(
+                step.tool,
+                ToolExecutionRequest(
+                    arguments=step.arguments,
+                    context=ToolExecutionContext(
+                        workspace_manager=self._workspace_manager,
+                        security_manager=self._security_manager,
+                    ),
+                ),
+            )
+
+            output.append(result.content)
+
+        return RuntimeResponse(
+            content="\n".join(output),
+        )
+
+=== FILE: src\adityacli\runtime\models.py ===
+
+from __future__ import annotations
+from enum import Enum
+from pydantic import BaseModel, Field
+
+
+class IntentType(str, Enum):
+    """Intent classification produced by the IntentRouter."""
+
+    FILESYSTEM = "filesystem"
+    TERMINAL = "terminal"
+    GIT = "git"
+    SEARCH = "search"
+    WEB = "web"
+    MCP = "mcp"
+    SEMANTIC = "semantic"
+    REASONING = "reasoning"
+    AMBIGUOUS = "ambiguous"
+
+
+class PipelineType(str, Enum):
+    """Execution pipeline."""
+
+    DETERMINISTIC = "deterministic"
+    SEMANTIC = "semantic"
+    REASONING = "reasoning"
+
+
+class RuntimeRequest(BaseModel):
+    """Request entering the Runtime."""
+
+    prompt: str
+
+
+class RuntimeResponse(BaseModel):
+    """Response returned by the Runtime."""
+
+    content: str
+
+
+class IntentResult(BaseModel):
+    """Output from the Intent Router."""
+
+    intent: IntentType
+
+    pipeline: PipelineType | None = None
+
+    tool_name: str | None = None
+
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+
+class ResourceState(BaseModel):
+    """Current runtime resource state."""
+
+    provider: str
+
+    model: str
+
+    context_window: int
+
+    quantization: str | None = None
+
+    estimated_ram_mb: int | None = None
+
+    supports_streaming: bool = True
+
+    supports_tools: bool = True
+
+    supports_grammar: bool = False
+
+
+class RuntimeContext(BaseModel):
+    """Context passed through Runtime execution."""
+
+    request: RuntimeRequest
+
+    intent: IntentResult
+
+    resources: ResourceState
+
+
+class PromptContext(BaseModel):
+    """Prompt generated by PromptManager."""
+
+    system_prompt: str
+
+    user_prompt: str
+
+
+class GrammarContext(BaseModel):
+    """Grammar configuration."""
+
+    enabled: bool = False
+
+    grammar: str | None = None
+
+=== FILE: src\adityacli\runtime\pipeline_dispatcher.py ===
+
+from __future__ import annotations
+
+from .models import (
+    IntentResult,
+    IntentType,
+    PipelineType,
+)
+
+
+class PipelineDispatcher:
+    """Select the execution pipeline for a classified request."""
+
+    def dispatch(
+        self,
+        intent: IntentResult,
+    ) -> PipelineType:
+        """Return the execution pipeline."""
+
+        match intent.intent:
+            case (
+                IntentType.FILESYSTEM
+                | IntentType.TERMINAL
+                | IntentType.GIT
+                | IntentType.SEARCH
+                | IntentType.WEB
+                | IntentType.MCP
+            ):
+                return PipelineType.DETERMINISTIC
+
+            case IntentType.SEMANTIC:
+                return PipelineType.SEMANTIC
+
+            case IntentType.REASONING:
+                return PipelineType.REASONING
+
+            case IntentType.AMBIGUOUS:
+                raise ValueError(
+                    "Unable to determine execution pipeline."
+                )
+
+        raise ValueError(
+            f"Unsupported intent: {intent.intent.value}"
+        )
+
+=== FILE: src\adityacli\runtime\prompt_manager.py ===
+
+from __future__ import annotations
+
+from .models import (
+    PipelineType,
+    PromptContext,
+)
+
+
+class PromptManager:
+    """Build prompts for each execution pipeline."""
+
+    def build(
+        self,
+        pipeline: PipelineType,
+        user_prompt: str,
+        context: str | None = None,
+    ) -> PromptContext:
+        """Build the final prompt."""
+
+        if pipeline == PipelineType.DETERMINISTIC:
+            system_prompt = (
+                "Execute the requested task accurately."
+            )
+
+        elif pipeline == PipelineType.SEMANTIC:
+            system_prompt = (
+                "Answer only using the supplied context."
+            )
+
+        elif pipeline == PipelineType.REASONING:
+            system_prompt = (
+                "Reason carefully before producing the final answer."
+            )
+
+        else:
+            system_prompt = (
+                "Request clarification from the user."
+            )
+
+        if context:
+            user_prompt = (
+                f"{context}\n\n"
+                f"{user_prompt}"
+            )
+
+        return PromptContext(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+        )
+
+=== FILE: src\adityacli\runtime\resource_manager.py ===
+
+from __future__ import annotations
+
+from adityacli.contracts.provider import ModelInfo
+from adityacli.provider import ProviderManager
+
+from .constants import (
+    CONVERSATION_HISTORY_RESERVE,
+    MIN_CONTEXT_BUDGET,
+    MODEL_RESPONSE_RESERVE,
+    SYSTEM_PROMPT_RESERVE,
+)
+from .exceptions import ResourceUnavailableError
+from .models import ResourceState
+
+
+class ResourceManager:
+    """Maintain runtime resource state."""
+
+    def __init__(
+        self,
+        provider_manager: ProviderManager,
+    ) -> None:
+        self._provider_manager = provider_manager
+
+    def state(self) -> ResourceState:
+        """Return the current model state."""
+
+        if not self._provider_manager.health_check():
+            raise ResourceUnavailableError(
+                "Provider is offline."
+            )
+
+        model: ModelInfo = self._provider_manager.model_info()
+
+        return ResourceState(
+            provider=self._provider_manager.provider_info().name,
+            model=model.name,
+            context_window=model.context_window,
+            quantization=model.quantization,
+            estimated_ram_mb=model.estimated_ram_mb,
+            supports_streaming=model.supports_streaming,
+            supports_tools=model.supports_tools,
+            supports_grammar=model.supports_grammar,
+        )
+
+    def validate(self) -> ResourceState:
+        """Validate runtime resources."""
+
+        state = self.state()
+
+        if not state.model:
+            raise ResourceUnavailableError(
+                "No model is loaded."
+            )
+
+        return state
+
+    def context_budget(self) -> int:
+        """Return the usable context window."""
+
+        state = self.state()
+
+        budget = (
+            state.context_window
+            - SYSTEM_PROMPT_RESERVE
+            - CONVERSATION_HISTORY_RESERVE
+            - MODEL_RESPONSE_RESERVE
+        )
+
+        return max(
+            budget,
+            MIN_CONTEXT_BUDGET,
+        )
+
+=== FILE: src\adityacli\runtime\__init__.py ===
+
+from .manager import RuntimeManager
+from .intent_router import IntentRouter
+from .pipeline_dispatcher import PipelineDispatcher
+from .resource_manager import ResourceManager
+from .context_builder import ContextBuilder
+from .prompt_manager import PromptManager
+
+from .models import (
+    RuntimeRequest,
+    RuntimeResponse,
+    RuntimeContext,
+    ResourceState,
+    PromptContext,
+    GrammarContext,
+    IntentResult,
+    IntentType,
+    PipelineType,
+)
+
+__all__ = [
+    "RuntimeManager",
+    "IntentRouter",
+    "PipelineDispatcher",
+    "ResourceManager",
+    "ContextBuilder",
+    "PromptManager",
+    "RuntimeRequest",
+    "RuntimeResponse",
+    "RuntimeContext",
+    "ResourceState",
+    "PromptContext",
+    "GrammarContext",
+    "IntentResult",
+    "IntentType",
+    "PipelineType",
+]
+
+=== FILE: src\adityacli\security\constants.py ===
+
+
+=== FILE: src\adityacli\security\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+class SecurityError(RecoverableError):
+    """Base class for all security-related errors."""
+
+class PermissionDeniedError(SecurityError):
+    ERROR_CODE = "PERMISSION_DENIED"
+    DEFAULT_RECOVERY_HINT = (
+        "Request the required permission."
+    )
+
+class PolicyViolationError(SecurityError):
+    ERROR_CODE = "POLICY_VIOLATION"
+    DEFAULT_RECOVERY_HINT = (
+        "Modify the request to satisfy the active security policy."
+    )
+
+class SecurityValidationError(SecurityError):
+    ERROR_CODE = "SECURITY_VALIDATION"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the security validation rules."
+    )
+
+class ConfirmationRequiredError(SecurityError):
+    ERROR_CODE = "CONFIRMATION_REQUIRED"
+    DEFAULT_RECOVERY_HINT = (
+        "Obtain explicit user confirmation."
+    )
+
+class RestrictedOperationError(SecurityError):
+    ERROR_CODE = "RESTRICTED_OPERATION"
+    DEFAULT_RECOVERY_HINT = (
+        "This operation is not permitted under the current policy."
+    )
+
+=== FILE: src\adityacli\security\manager.py ===
+
+from __future__ import annotations
+
+from .models import (
+    Permission,
+    SecurityDecision,
+)
+from .validators import SecurityValidator
+
+class SecurityManager:
+    """Manage runtime security decisions."""
+
+    def validate(
+        self,
+        permission: Permission,
+    ) -> SecurityDecision:
+        """Validate a permission request."""
+
+        return SecurityValidator.validate(permission)
+
+=== FILE: src\adityacli\security\models.py ===
+
+from __future__ import annotations
+from enum import Enum
+from pydantic import BaseModel
+from adityacli.contracts.tools import PermissionType
+
+
+
+
+class SecurityOutcome(str, Enum):
+    """Possible security decisions."""
+
+    ALLOW = "allow"
+    REJECT = "reject"
+    SANDBOX = "sandbox"
+
+
+class Permission(BaseModel):
+    """Permission requested by a tool."""
+
+    permission: PermissionType
+
+
+class Policy(BaseModel):
+    """Security policy metadata."""
+
+    name: str
+
+
+class SecurityDecision(BaseModel):
+    """Result returned by the Security subsystem."""
+
+    outcome: SecurityOutcome
+
+    reason: str | None = None
+
+    requires_confirmation: bool = False
+
+=== FILE: src\adityacli\security\policies.py ===
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+
+from .models import (
+    Permission,
+    Policy,
+    SecurityDecision,
+)
+
+class SecurityPolicy(ABC):
+    """Contract implemented by every security policy."""
+
+    @abstractmethod
+    def policy(self) -> Policy:
+        """Return the policy metadata."""
+        ...
+        
+        
+    @abstractmethod
+    def validate(
+        self,
+        permission: Permission,
+    ) -> SecurityDecision:
+        """Validate a permission request."""
+        ...
+
+=== FILE: src\adityacli\security\types.py ===
+
+
+=== FILE: src\adityacli\security\utils.py ===
+
+
+=== FILE: src\adityacli\security\validators.py ===
+
+from __future__ import annotations
+
+from .models import (
+    Permission,
+    SecurityDecision,
+    SecurityOutcome,
+)
+
+class SecurityValidator:
+    """Validate security requests."""
+
+    @staticmethod
+    def validate(
+        permission: Permission,
+    ) -> SecurityDecision:
+        """Validate a permission request."""
+
+        return SecurityDecision(
+            outcome=SecurityOutcome.ALLOW,
+            requires_confirmation=True,
+        )
+
+=== FILE: src\adityacli\security\__init__.py ===
+
+from .manager import SecurityManager
+
+from .models import (
+    Permission,
+    Policy,
+    SecurityDecision,
+)
+
+from .policies import SecurityPolicy
+from .validators import SecurityValidator
+
+__all__ = [
+    "SecurityManager",
+    "Permission",
+    "Policy",
+    "SecurityDecision",
+    "SecurityPolicy",
+    "SecurityValidator",
+]
+
+=== FILE: src\adityacli\security\policies\filesystem.py ===
+
+
+=== FILE: src\adityacli\security\policies\git.py ===
+
+
+=== FILE: src\adityacli\security\policies\mcp.py ===
+
+
+=== FILE: src\adityacli\security\policies\network.py ===
+
+
+=== FILE: src\adityacli\security\policies\terminal.py ===
+
+
+=== FILE: src\adityacli\session\constants.py ===
+
+
+=== FILE: src\adityacli\session\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+class SessionError(RecoverableError):
+    """Base class for all session-related errors."""
+
+class SessionNotFoundError(SessionError):
+    ERROR_CODE = "SESSION_NOT_FOUND"
+    DEFAULT_RECOVERY_HINT = (
+        "Create or load a valid session."
+    )
+
+class SessionAlreadyExistsError(SessionError):
+    ERROR_CODE = "SESSION_ALREADY_EXISTS"
+    DEFAULT_RECOVERY_HINT = (
+        "Use the existing session or create a new one."
+    )
+
+class SessionNotActiveError(SessionError):
+    ERROR_CODE = "SESSION_NOT_ACTIVE"
+    DEFAULT_RECOVERY_HINT = (
+        "Start a session before performing this operation."
+    )
+
+class InvalidSessionError(SessionError):
+    ERROR_CODE = "INVALID_SESSION"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the session state."
+    )
+
+=== FILE: src\adityacli\session\manager.py ===
+
+from __future__ import annotations
+
+from .models import Session
+
+class SessionManager:
+    """Manage the active application session."""
+    
+    def __init__(self) -> None:
+        self._session: Session | None = None
+
+    @property
+    def session(self) -> Session | None:
+        """Return the active session."""
+
+        return self._session
+    
+    def create(self) -> Session:
+        """Create a new session."""
+
+        self._session = Session()
+
+        return self._session
+    
+    @property
+    def active(self) -> bool:
+        """Return whether a session is active."""
+
+        return self._session is not None
+    
+    def destroy(self) -> None:
+        """Destroy the active session."""
+
+        self._session = None
+
+=== FILE: src\adityacli\session\models.py ===
+
+from __future__ import annotations
+
+from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field
+
+class Session(BaseModel):
+    """Represents an active application session."""
+
+    id: UUID = Field(default_factory=uuid4)
+
+class SessionInfo(BaseModel):
+    """Metadata about a session."""
+
+    id: UUID
+
+
+
+=== FILE: src\adityacli\session\types.py ===
+
+
+=== FILE: src\adityacli\session\utils.py ===
+
+
+=== FILE: src\adityacli\session\__init__.py ===
+
+from .manager import SessionManager
+
+from .models import (
+    Session,
+    SessionInfo,
+)
+
+__all__ = [
+    "SessionManager",
+    "Session",
+    "SessionInfo",
+]
+
+=== FILE: src\adityacli\tool\constants.py ===
+
+
+=== FILE: src\adityacli\tool\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+
+class ToolError(RecoverableError):
+    """Base class for all tool-related errors."""
+
+class ToolNotFoundError(ToolError):
+    ERROR_CODE = "TOOL_NOT_FOUND"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the tool name."
+    )
+
+class ToolExecutionError(ToolError):
+    ERROR_CODE = "TOOL_EXECUTION"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the operation."
+    )
+
+class ToolValidationError(ToolError):
+    ERROR_CODE = "TOOL_VALIDATION"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the tool arguments."
+    )
+
+class ToolPermissionError(ToolError):
+    ERROR_CODE = "TOOL_PERMISSION"
+    DEFAULT_RECOVERY_HINT = (
+        "Request the required permission."
+    )
+
+class ToolTimeoutError(ToolError):
+    ERROR_CODE = "TOOL_TIMEOUT"
+    DEFAULT_RECOVERY_HINT = (
+        "Retry the operation or increase the timeout."
+    )
+
+class ToolUnavailableError(ToolError):
+    ERROR_CODE = "TOOL_UNAVAILABLE"
+    DEFAULT_RECOVERY_HINT = (
+        "Ensure the required runtime dependency is available."
+    )
+
+
+
+=== FILE: src\adityacli\tool\interface.py ===
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from adityacli.contracts.tools import (
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult
+)
+
+class ToolInterface(ABC):
+    """Contract implemented by every tool."""
+
+    @abstractmethod
+    def definition(self) -> ToolDefinition:
+        """Return the tool definition."""
+
+    @abstractmethod
+    def execute(
+        self,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+        """Execute the tool."""
+
+
+=== FILE: src\adityacli\tool\manager.py ===
+
+from __future__ import annotations
+
+from adityacli.contracts.tools import (
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+)
+
+from .registry import ToolRegistry
+
+
+class ToolManager:
+    """Manage tool execution."""
+
+    def __init__(
+        self,
+        registry: ToolRegistry,
+    ) -> None:
+        self._registry = registry
+
+    def execute(
+        self,
+        name: str,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+        tool = self._registry.create(name)
+        return tool.execute(request)
+
+    def definition(
+        self,
+        name: str,
+    ) -> ToolDefinition:
+        return self._registry.definition(name)
+
+    def definitions(
+        self,
+    ) -> list[ToolDefinition]:
+        return self._registry.definitions()
+
+    def exists(
+        self,
+        name: str,
+    ) -> bool:
+        return self._registry.exists(name)
+
+=== FILE: src\adityacli\tool\registry.py ===
+
+from __future__ import annotations
+
+from .interface import ToolInterface
+from .exceptions import (
+    ToolNotFoundError,
+    ToolValidationError,
+)
+from adityacli.contracts.tools import ToolDefinition
+
+
+class ToolRegistry:
+    """Registry of available tool implementations."""
+
+
+    def __init__(self) -> None:
+        self._tools: dict[str, type[ToolInterface]] = {}
+
+    
+
+    def register(
+            self,
+            name: str,
+            tool_class: type[ToolInterface],
+    ) -> None:
+        """Register a tool implementation."""
+
+        if name in self._tools:
+            raise ToolValidationError(
+                f"Tool '{name}' is already registered."
+            )
+        
+        self._tools[name] = tool_class
+
+
+    
+
+    def unregister(self, name: str) -> None:
+        """Unregister a tool."""
+
+        if not self.exists(name):
+            raise ToolValidationError(
+                f"Tool '{name}' is already registered."
+            )
+        
+        del self._tools[name]
+
+
+    def exists(self, name: str) -> bool:
+        """Return whether a tool is registered"""
+
+        return name in self._tools
+    
+
+    def create(self, name: str) -> ToolInterface:
+
+        tool_class = self._tools[name]
+
+        return tool_class()
+    
+
+    def list_tools(self) -> list[str]:
+        """Return all registered tool name"""
+
+        return sorted(self._tools.keys())
+    
+
+    def definition(
+        self,
+        name: str,
+    ) -> ToolDefinition:
+        """Return a registered tool definition."""
+
+        tool = self.create(name)
+
+        return tool.definition()
+    
+
+    def definitions(
+        self,
+    ) -> list[ToolDefinition]:
+        """Return all registered tool definitions."""
+
+        return [
+            self.create(name).definition()
+            for name in self.list_tools()
+    ]
+
+=== FILE: src\adityacli\tool\types.py ===
+
+
+=== FILE: src\adityacli\tool\utils.py ===
+
+
+=== FILE: src\adityacli\tool\__init__.py ===
+
+from .interface import ToolInterface
+
+from .manager import ToolManager
+from .registry import ToolRegistry
+
+
+from .tools.read_file import ReadFileTool
+from .tools.write_file import WriteFileTool
+from .tools.edit_file import EditFileTool
+from .tools.terminal import TerminalTool
+from .tools.git_tool import GitStatusTool
+from .tools.workspace_search import WorkspaceSearchTool
+
+__all__ = [
+    "ToolInterface",
+    "ToolManager",
+    "ToolRegistry",
+    "ReadFileTool",
+    "WriteFileTool",
+    "EditFileTool",
+    "TerminalTool",
+    "GitStatusTool",
+    "WorkspaceSearchTool",
+]
+
+=== FILE: src\adityacli\tool\tools\edit_file.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from adityacli.contracts.tools import (
+    PermissionType,
+    ToolCategory,
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter,
+)
+from adityacli.tool.exceptions import (
+    ToolExecutionError,
+    ToolValidationError,
+)
+
+from ..interface import ToolInterface
+
+
+class EditFileTool(ToolInterface):
+    """Replace text inside an existing file."""
+
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="edit_file",
+            description="Replace text inside a file.",
+            parameters=[
+                ToolParameter(
+                    name="path",
+                    type="string",
+                    description="Relative path.",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="old_text",
+                    type="string",
+                    description="Text to replace.",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="new_text",
+                    type="string",
+                    description="Replacement text.",
+                    required=True,
+                ),
+            ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.WRITE,
+        )
+
+    def execute(
+        self,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+
+        path = request.arguments.get("path")
+        old_text = request.arguments.get("old_text")
+        new_text = request.arguments.get("new_text")
+
+        if not isinstance(path, str):
+            raise ToolValidationError(
+                "Argument 'path' is required."
+            )
+
+        if not isinstance(old_text, str):
+            raise ToolValidationError(
+                "Argument 'old_text' is required."
+            )
+
+        if not isinstance(new_text, str):
+            raise ToolValidationError(
+                "Argument 'new_text' is required."
+            )
+
+        workspace = request.context.workspace_manager
+
+        try:
+            file_path = workspace.resolve(Path(path))
+
+            content = file_path.read_text(
+                encoding="utf-8",
+                errors="ignore",
+            )
+
+            if old_text not in content:
+                raise ToolExecutionError(
+                    "Text not found."
+                )
+
+            replacements = content.count(old_text)
+
+            updated = content.replace(
+                old_text,
+                new_text,
+            )
+
+            file_path.write_text(
+                updated,
+                encoding="utf-8",
+            )
+
+            return ToolExecutionResult(
+                success=True,
+                content=f"Updated '{path}'.",
+                metadata={
+                    "replacements": replacements,
+                },
+            )
+
+        except OSError as exc:
+            raise ToolExecutionError(
+                f"Failed to edit '{path}'."
+            ) from exc
+
+=== FILE: src\adityacli\tool\tools\git_tool.py ===
+
+from __future__ import annotations
+
+import subprocess
+
+from adityacli.contracts.tools import (
+    PermissionType,
+    ToolCategory,
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter,
+)
+from adityacli.tool.exceptions import (
+    ToolExecutionError,
+    ToolValidationError,
+)
+
+from ..interface import ToolInterface
+
+
+class GitStatusTool(ToolInterface):
+    """Execute git commands inside the active workspace."""
+
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="git_status",
+            description="Execute a git command.",
+            parameters=[
+                ToolParameter(
+                    name="command",
+                    type="string",
+                    description="Git command to execute.",
+                    required=True,
+                ),
+            ],
+            category=ToolCategory.GIT,
+            permission=PermissionType.GIT,
+        )
+
+    def execute(
+        self,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+
+        command = request.arguments.get("command")
+
+        if not isinstance(command, str) or not command.strip():
+            raise ToolValidationError(
+                "Argument 'command' is required."
+            )
+
+        command = command.strip()
+
+        if not command.lower().startswith("git"):
+            command = f"git {command}"
+
+        workspace = request.context.workspace_manager.workspace.root
+
+        try:
+            result = subprocess.run(
+                command,
+                cwd=workspace,
+                shell=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+
+            output = result.stdout.strip()
+
+            if result.stderr.strip():
+                output += (
+                    "\n" if output else ""
+                ) + result.stderr.strip()
+
+            return ToolExecutionResult(
+                success=result.returncode == 0,
+                content=output or "(no output)",
+                metadata={
+                    "return_code": result.returncode,
+                },
+            )
+
+        except OSError as exc:
+            raise ToolExecutionError(
+                str(exc),
+            ) from exc
+
+=== FILE: src\adityacli\tool\tools\read_file.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from adityacli.contracts.tools import (
+    PermissionType,
+    ToolCategory,
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter,
+)
+from adityacli.tool.exceptions import (
+    ToolExecutionError,
+    ToolValidationError,
+)
+
+from ..interface import ToolInterface
+
+
+class ReadFileTool(ToolInterface):
+    """Read a file from the active workspace."""
+
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="read_file",
+            description="Read the contents of a file.",
+            parameters=[
+                ToolParameter(
+                    name="path",
+                    type="string",
+                    description="Relative path to the file.",
+                    required=True,
+                )
+            ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.READ,
+        )
+
+    def execute(
+        self,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+
+        path = request.arguments.get("path")
+
+        if not isinstance(path, str) or not path.strip():
+            raise ToolValidationError(
+                "Argument 'path' is required."
+            )
+
+        workspace = request.context.workspace_manager
+
+        try:
+            file_path = workspace.resolve(Path(path))
+
+            return ToolExecutionResult(
+                success=True,
+                content=file_path.read_text(
+                    encoding="utf-8",
+                    errors="ignore",
+                ),
+            )
+
+        except OSError as exc:
+            raise ToolExecutionError(
+                f"Failed to read '{path}'."
+            ) from exc
+
+=== FILE: src\adityacli\tool\tools\terminal.py ===
+
+from __future__ import annotations
+
+import subprocess
+
+from adityacli.contracts.tools import (
+    PermissionType,
+    ToolCategory,
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter,
+)
+from adityacli.tool.exceptions import (
+    ToolExecutionError,
+    ToolValidationError,
+)
+
+from ..interface import ToolInterface
+
+
+class TerminalTool(ToolInterface):
+    """Run terminal commands inside the active workspace."""
+
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="terminal",
+            description="Execute a terminal command.",
+            parameters=[
+                ToolParameter(
+                    name="command",
+                    type="string",
+                    description="Command to execute.",
+                    required=True,
+                ),
+            ],
+            category=ToolCategory.TERMINAL,
+            permission=PermissionType.EXECUTE,
+        )
+
+    def execute(
+        self,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+
+        command = request.arguments.get("command")
+
+        if not isinstance(command, str) or not command.strip():
+            raise ToolValidationError(
+                "Argument 'command' is required."
+            )
+
+        workspace = request.context.workspace_manager.workspace.root
+
+        try:
+            result = subprocess.run(
+                command,
+                cwd=workspace,
+                shell=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+
+            output = result.stdout.strip()
+
+            if result.stderr.strip():
+                output += (
+                    "\n" if output else ""
+                ) + result.stderr.strip()
+
+            return ToolExecutionResult(
+                success=result.returncode == 0,
+                content=output or "(no output)",
+                metadata={
+                    "return_code": result.returncode,
+                },
+            )
+
+        except OSError as exc:
+            raise ToolExecutionError(
+                str(exc),
+            ) from exc
+
+=== FILE: src\adityacli\tool\tools\workspace_search.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from adityacli.contracts.tools import (
+    PermissionType,
+    ToolCategory,
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter,
+)
+from adityacli.tool.exceptions import ToolValidationError
+
+from ..interface import ToolInterface
+
+
+IGNORED_DIRECTORIES = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    "node_modules",
+    ".mypy_cache",
+    ".idea",
+    ".vscode",
+}
+
+
+class WorkspaceSearchTool(ToolInterface):
+    """Search for files inside the active workspace."""
+
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="workspace_search",
+            description="Search for files by name inside the workspace.",
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="Filename or partial filename.",
+                    required=True,
+                )
+            ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.READ,
+        )
+
+    def execute(
+        self,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+
+        query = request.arguments.get("query")
+
+        if not isinstance(query, str) or not query.strip():
+            raise ToolValidationError(
+                "Argument 'query' is required."
+            )
+
+        workspace = request.context.workspace_manager.workspace.root
+
+        matches: list[str] = []
+
+        for path in workspace.rglob("*"):
+
+            if not path.is_file():
+                continue
+
+            if any(
+                part in IGNORED_DIRECTORIES
+                for part in path.parts
+            ):
+                continue
+
+            if query.lower() in path.name.lower():
+                matches.append(
+                    str(path.relative_to(workspace))
+                )
+
+        matches.sort()
+
+        return ToolExecutionResult(
+            success=True,
+            content="\n".join(matches)
+            if matches
+            else "No matching files found.",
+            metadata={
+                "count": len(matches),
+            },
+        )
+
+=== FILE: src\adityacli\tool\tools\write_file.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from adityacli.contracts.tools import (
+    PermissionType,
+    ToolCategory,
+    ToolDefinition,
+    ToolExecutionRequest,
+    ToolExecutionResult,
+    ToolParameter,
+)
+from adityacli.tool.exceptions import (
+    ToolExecutionError,
+    ToolValidationError,
+)
+
+from ..interface import ToolInterface
+
+
+class WriteFileTool(ToolInterface):
+    """Write a file inside the active workspace."""
+
+    def definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="write_file",
+            description="Write content to a file.",
+            parameters=[
+                ToolParameter(
+                    name="path",
+                    type="string",
+                    description="Relative path.",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="content",
+                    type="string",
+                    description="Content to write.",
+                    required=True,
+                ),
+            ],
+            category=ToolCategory.FILESYSTEM,
+            permission=PermissionType.WRITE,
+        )
+
+    def execute(
+        self,
+        request: ToolExecutionRequest,
+    ) -> ToolExecutionResult:
+
+        path = request.arguments.get("path")
+        content = request.arguments.get("content")
+
+        if not isinstance(path, str):
+            raise ToolValidationError(
+                "Argument 'path' is required."
+            )
+
+        if not isinstance(content, str):
+            raise ToolValidationError(
+                "Argument 'content' is required."
+            )
+
+        workspace = request.context.workspace_manager
+
+        try:
+            file_path = workspace.resolve(Path(path))
+
+            file_path.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            file_path.write_text(
+                content,
+                encoding="utf-8",
+            )
+
+            return ToolExecutionResult(
+                success=True,
+                content=f"Wrote '{path}'.",
+            )
+
+        except OSError as exc:
+            raise ToolExecutionError(
+                f"Failed to write '{path}'."
+            ) from exc
+
+=== FILE: src\adityacli\tool\tools\__init__.py ===
+
+
+=== FILE: src\adityacli\workspace\constants.py ===
+
+
+=== FILE: src\adityacli\workspace\exceptions.py ===
+
+from adityacli.exceptions import RecoverableError
+
+class WorkspaceError(RecoverableError):
+    """Base class for all workspace-related errors."""
+
+class WorkspaceNotFoundError(WorkspaceError):
+    ERROR_CODE = "WORKSPACE_NOT_FOUND"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify the workspace path exists."
+    )
+
+class WorkspaceAccessDeniedError(WorkspaceError):
+    ERROR_CODE = "WORKSPACE_ACCESS_DENIED"
+    DEFAULT_RECOVERY_HINT = (
+        "Verify file and directory permissions."
+    )
+
+class WorkspaceBoundaryError(WorkspaceError):
+    ERROR_CODE = "WORKSPACE_BOUNDARY"
+    DEFAULT_RECOVERY_HINT = (
+        "Access files only inside the workspace."
+    )
+
+class InvalidWorkspaceError(WorkspaceError):
+    ERROR_CODE = "INVALID_WORKSPACE"
+    DEFAULT_RECOVERY_HINT = (
+        "Select a valid project directory."
+    )
+
+=== FILE: src\adityacli\workspace\manager.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from .models import (
+    Workspace,
+    WorkspaceInfo,
+)
+from .validators import WorkspaceValidator
+
+class WorkspaceManager:
+    """Manage the active workspace."""
+
+    def __init__(self) -> None:
+        self._workspace: Workspace | None = None
+
+    @property
+    def workspace(self) -> Workspace:
+        """Return the active workspace."""
+
+        if self._workspace is None:
+            raise RuntimeError("Workspace is not loaded.")
+
+        return self._workspace
+    
+    def load(self, path: Path) -> None:
+        """Load the workspace."""
+
+        path = WorkspaceValidator.validate_workspace(path)
+        self._workspace = Workspace(root=path)
+
+    def resolve(self, path: Path) -> Path:
+        """Resolve a path inside the workspace."""
+
+        return WorkspaceValidator.validate_path(
+            self.workspace.root,
+            path,
+        )
+
+    def info(self) -> WorkspaceInfo:
+        """Return workspace metadata."""
+
+        return WorkspaceInfo(
+            name=self.workspace.root.name,
+            root=self.workspace.root,
+        )
+    
+    def unload(self) -> None:
+        """Unload the active workspace."""
+
+        self._workspace = None
+
+=== FILE: src\adityacli\workspace\models.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from pydantic import BaseModel
+
+class Workspace(BaseModel):
+    """Represents the active workspace."""
+
+    root: Path
+
+
+class WorkspaceInfo(BaseModel):
+    """Metadata about the workspace."""
+
+    name: str
+    root: Path
+
+=== FILE: src\adityacli\workspace\types.py ===
+
+
+=== FILE: src\adityacli\workspace\utils.py ===
+
+
+=== FILE: src\adityacli\workspace\validators.py ===
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from .exceptions import (
+    InvalidWorkspaceError,
+    WorkspaceBoundaryError,
+    WorkspaceNotFoundError,
+)
+
+
+class WorkspaceValidator:
+    """Validate workspace paths."""
+
+    @staticmethod
+    def validate_workspace(path: Path) -> Path:
+        """Validate the workspace path."""
+
+        path = path.resolve()
+
+        if not path.exists():
+            raise WorkspaceNotFoundError(
+                message="Workspace does not exist."
+            )
+
+        if not path.is_dir():
+            raise InvalidWorkspaceError(
+                message="Workspace path is not a directory."
+            )
+
+        return path
+    
+    @staticmethod
+    def validate_path(
+        workspace: Path,
+        path: Path,
+    ) -> Path:
+        """Validate that a path is inside the workspace."""
+
+        workspace = workspace.resolve()
+        path = path.resolve()
+
+        if workspace not in path.parents and path != workspace:
+            raise WorkspaceBoundaryError(
+                message="Path is outside the workspace."
+            )
+
+        return path
+
+=== FILE: src\adityacli\workspace\__init__.py ===
+
+from .manager import WorkspaceManager
+
+from .models import (
+    Workspace,
+    WorkspaceInfo,
+)
+
+from .validators import WorkspaceValidator
+
+__all__ = [
+    "WorkspaceManager",
+    "Workspace",
+    "WorkspaceInfo",
+    "WorkspaceValidator",
+]
+
+=== FILE: .gitignore ===
+
+# ============================================
+# Python
+# ============================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ============================================
+# Virtual Environment
+# ============================================
+
+.venv/
+venv/
+env/
+
+# ============================================
+# Build & Distribution
+# ============================================
+
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ============================================
+# Testing
+# ============================================
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# ============================================
+# Type Checking
+# ============================================
+
+.mypy_cache/
+.pyre/
+.pytype/
+
+# ============================================
+# Linting
+# ============================================
+
+.ruff_cache/
+
+# ============================================
+# IDE
+# ============================================
+
+.vscode/
+.idea/
+
+# ============================================
+# Operating System
+# ============================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================
+# Environment Variables
+# ============================================
+
+.env
+.env.*
+!.env.example
+
+# ============================================
+# Logs
+# ============================================
+
+*.log
+logs/
+
+# ============================================
+# SQLite
+# ============================================
+
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ============================================
+# AI / Local Models
+# ============================================
+
+models/
+embeddings/
+vector_store/
+rag/
+memory/
+cache/
+
+# ============================================
+# Generated Data
+# ============================================
+
+sessions/
+temp/
+tmp/
+output/
+
+# ============================================
+# Jupyter
+# ============================================
+
+.ipynb_checkpoints/
+
+# ============================================
+# Python Version Managers
+# ============================================
+
+.python-version
+
+# ============================================
+# Coverage
+# ============================================
+
+coverage.xml
+
+# ============================================
+# Local MCP Configuration
+# ============================================
+
+mcp_servers.local.json
+
+# ============================================
+# Local User Configuration
+# ============================================
+
+config.local.*
+
+# ============================================
+# Frontend Build
+# ============================================
+
+dist/
+
+# ============================================
+# Package Managers
+# ============================================
+
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+private/
+
+=== FILE: pyproject.toml ===
+
+[project]
+name = "adityacli"
+version = "2.0.0"
+description = "A production-grade local-first AI developer assistant."
+readme = "README.md"
+requires-python = ">=3.12"
+
+
+authors = [
+    { name = "Aditya Saxena" }
+]
+
+
+dependencies = [
+    "typer>=0.16.0",
+    "rich>=14.0.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.10.0",
+    "python-dotenv>=1.1.0",
+    "openai>=1.100.0",
+    "httpx>=0.28.0",
+]
+
+[project.scripts]
+aditya = "adityacli.cli.main:main"
