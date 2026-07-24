@@ -17,6 +17,7 @@ class AgentRequest(BaseModel):
     """Agent execution request."""
 
     prompt: str
+    system_prompt: str = ""
 
 class AgentResponse(BaseModel):
     """Agent execution response."""

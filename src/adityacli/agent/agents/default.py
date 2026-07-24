@@ -52,12 +52,22 @@ class DefaultAgent(AgentInterface):
         if provider is None:
             raise RuntimeError("No active provider.")
 
-        messages: list[ChatMessage] = [
+        messages: list[ChatMessage] = []
+
+        if request.system_prompt:
+            messages.append(
+                ChatMessage(
+                    role="system",
+                    content=request.system_prompt,
+                )
+            )
+
+        messages.append(
             ChatMessage(
                 role="user",
                 content=request.prompt,
             )
-        ]
+        )
 
         response = provider.generate(
             GenerationRequest(
@@ -122,14 +132,76 @@ class DefaultAgent(AgentInterface):
         if provider is None:
             raise RuntimeError("No active provider.")
 
+        messages: list[ChatMessage] = []
+
+        if request.system_prompt:
+            messages.append(
+                ChatMessage(
+                    role="system",
+                    content=request.system_prompt,
+                )
+            )
+
+        messages.append(
+            ChatMessage(
+                role="user",
+                content=request.prompt,
+            )
+)
+
+        response = provider.generate(
+            GenerationRequest(
+                messages=messages,
+                tools=self._tool_manager.definitions(),
+                config=GenerationConfig(),
+            )
+        )
+
+        assistant_message = response.message
+
+        if assistant_message.tool_calls:
+
+            messages.append(assistant_message)
+
+            for call in assistant_message.tool_calls:
+
+                tool_request = ToolExecutionRequest(
+                    arguments=call.arguments,
+                    context=ToolExecutionContext(
+                        workspace_manager=self._workspace_manager,
+                        security_manager=self._security_manager,
+                    ),
+                )
+
+                result = self._tool_manager.execute(
+                    call.name,
+                    tool_request,
+                )
+
+                messages.append(
+                    ChatMessage(
+                        role="tool",
+                        tool_call_id=call.id,
+                        name=call.name,
+                        content=result.content,
+                    )
+                )
+
+            yield from provider.generate_stream(
+                GenerationRequest(
+                    messages=messages,
+                    config=GenerationConfig(
+                        stream=True,
+                    ),
+                )
+            )
+
+            return
+
+
         yield from provider.generate_stream(
             GenerationRequest(
-                messages=[
-                    ChatMessage(
-                        role="user",
-                        content=request.prompt,
-                    )
-                ],
+                messages=messages,
                 tools=self._tool_manager.definitions(),
                 config=GenerationConfig(
                     stream=True,

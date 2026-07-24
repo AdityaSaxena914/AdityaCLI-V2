@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-
+from .exceptions import InvalidWorkspaceError
 from .models import (
     Workspace,
     WorkspaceInfo,
@@ -19,7 +19,9 @@ class WorkspaceManager:
         """Return the active workspace."""
 
         if self._workspace is None:
-            raise RuntimeError("Workspace is not loaded.")
+            raise InvalidWorkspaceError(
+                "Workspace is not loaded."
+            )
 
         return self._workspace
     
@@ -49,3 +51,14 @@ class WorkspaceManager:
         """Unload the active workspace."""
 
         self._workspace = None
+
+    def resolve_existing_file(
+        self,
+        path: Path,
+    ) -> Path:
+        """Resolve an existing file inside the workspace."""
+
+        return WorkspaceValidator.validate_existing_file(
+            self.workspace.root,
+            path,
+        )

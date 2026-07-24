@@ -6,7 +6,11 @@ from .context_builder import ContextBuilder
 from .prompt_manager import PromptManager
 from .parser import RuntimeParser
 from .parser_models import RuntimePlan, RuntimeStep
-
+from .context_models import (
+    ContextBundle,
+    ContextDocument,
+    ContextSource,
+)
 from .models import (
     RuntimeRequest,
     RuntimeResponse,
@@ -38,4 +42,7 @@ __all__ = [
     "RuntimeParser",
     "RuntimePlan",
     "RuntimeStep",
+    "ContextBundle",
+    "ContextDocument",
+    "ContextSource",
 ]

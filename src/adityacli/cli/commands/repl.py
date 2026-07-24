@@ -3,10 +3,8 @@ from __future__ import annotations
 import typer
 from rich.console import Console
 from rich.prompt import Prompt
-
-from adityacli.agent import AgentRequest
 from adityacli.application import Application
-
+from adityacli.exceptions import AdityaCLIError
 
 console = Console()
 
@@ -37,10 +35,23 @@ def repl(
 
             console.print("[bold blue]Assistant[/bold blue]", end=": ")
 
-            response = app.runtime_manager.execute(prompt)
-            console.print(response.content)
+            for chunk in app.runtime_manager.execute_stream(prompt):
+                console.print(
+                    chunk,
+                    end="",
+                    highlight=False,
+                    soft_wrap=True,
+                )
 
             console.print("\n")
+
+        except AdityaCLIError as exc:
+            console.print(f"\n[red]{exc.message}[/red]")
+
+            if exc.recovery_hint:
+                console.print(
+                    f"[yellow]{exc.recovery_hint}[/yellow]"
+                )
 
         except KeyboardInterrupt:
             console.print("\nUse 'exit' or 'quit' to leave.\n")

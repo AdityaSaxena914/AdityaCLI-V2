@@ -46,3 +46,27 @@ class WorkspaceValidator:
             )
 
         return path
+
+    @staticmethod
+    def validate_existing_file(
+        workspace: Path,
+        path: Path,
+    ) -> Path:
+        """Validate that a file exists inside the workspace."""
+
+        path = WorkspaceValidator.validate_path(
+            workspace,
+            path,
+        )
+
+        if not path.exists():
+            raise WorkspaceNotFoundError(
+                message=f"File '{path.relative_to(workspace)}' does not exist."
+            )
+
+        if not path.is_file():
+            raise InvalidWorkspaceError(
+                message=f"'{path.relative_to(workspace)}' is not a file."
+            )
+
+        return path

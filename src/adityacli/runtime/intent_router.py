@@ -77,19 +77,61 @@ class IntentRouter:
 
 
         if verb in filesystem.READ:
-            return IntentResult(
-                intent=IntentType.FILESYSTEM,
-                pipeline=PipelineType.DETERMINISTIC,
-                tool_name="read_file",
-                confidence=1.0,
-            )
+            if any(
+                keyword in text
+                for keyword in (
+                    "summarize",
+                    "summary",
+                    "explain",
+                    "describe",
+                    "compare",
+                    "analyse",
+                    "analyze",
+                )
+            ):
+                return IntentResult(
+                    intent=IntentType.REASONING,
+                    pipeline=PipelineType.REASONING,
+                    confidence=0.95,
+                )
+
+            if len(text.split()) >= 2:
+                target = text.split()[1]
+
+                if (
+                    "." in target
+                    or "/" in target
+                    or "\\" in target
+                    or target.startswith("~")
+                ):
+                    return IntentResult(
+                        intent=IntentType.FILESYSTEM,
+                        pipeline=PipelineType.DETERMINISTIC,
+                        tool_name="read_file",
+                        confidence=1.0,
+                    )
 
         if verb in filesystem.WRITE:
+            if len(text.split()) >= 2:
+                target = text.split()[1]
+
+                if (
+                    "." in target
+                    or "/" in target
+                    or "\\" in target
+                    or target.startswith("~")
+                ):
+                    return IntentResult(
+                        intent=IntentType.FILESYSTEM,
+                        pipeline=PipelineType.DETERMINISTIC,
+                        tool_name="write_file",
+                        confidence=1.0,
+                    )
+
             return IntentResult(
-                intent=IntentType.FILESYSTEM,
-                pipeline=PipelineType.DETERMINISTIC,
-                tool_name="write_file",
-                confidence=1.0,
+                intent=IntentType.REASONING,
+                pipeline=PipelineType.REASONING,
+                confidence=0.95,
             )
 
         if verb in filesystem.EDIT:
@@ -173,6 +215,7 @@ class IntentRouter:
             )
 
         return IntentResult(
-            intent=IntentType.AMBIGUOUS,
-            confidence=0.0,
+            intent=IntentType.SEMANTIC,
+            pipeline=PipelineType.SEMANTIC,
+            confidence=0.50,
         )

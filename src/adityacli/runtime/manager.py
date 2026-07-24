@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-
+from collections.abc import Iterator
 from adityacli.agent import (
     AgentManager,
     AgentRequest,
@@ -12,7 +12,7 @@ from adityacli.provider import ProviderManager
 from adityacli.tool import ToolManager
 from adityacli.workspace import WorkspaceManager
 from adityacli.security import SecurityManager
-
+from .exceptions import PipelineDispatchError
 from .context_builder import ContextBuilder
 from .intent_router import IntentRouter
 from .pipeline_dispatcher import PipelineDispatcher
@@ -57,11 +57,30 @@ class RuntimeManager:
         self._prompt_manager = PromptManager()
         self._parser = RuntimeParser()
 
+        self._tool_context: ToolExecutionContext = ToolExecutionContext(
+            workspace_manager=self._workspace_manager,
+            security_manager=self._security_manager,
+        )
+
+        
     def execute(
         self,
         prompt: str,
     ) -> RuntimeResponse:
-        """Execute a user request."""
+        """Compatibility wrapper around execute_stream()."""
+
+        return RuntimeResponse(
+            content="".join(
+                self.execute_stream(prompt)
+            )
+        )
+
+
+    def execute_stream(
+        self,
+        prompt: str,
+    ) -> Iterator[str]:
+        """Execute a user request as a stream."""
 
         self._resource_manager.validate()
 
@@ -72,40 +91,79 @@ class RuntimeManager:
         )
 
         if pipeline is PipelineType.DETERMINISTIC:
-            return self._execute_deterministic(
+            yield from self._execute_deterministic_stream(
                 prompt,
                 intent.tool_name,
                 intent.intent,
             )
+            return
 
-        return self._execute_agent(prompt)
+        yield from self._execute_agent_stream(prompt,pipeline)
 
-    def _execute_agent(
+
+
+    def _execute_agent_stream(
         self,
         prompt: str,
-    ) -> RuntimeResponse:
-        """Forward semantic/reasoning requests to the default agent."""
+        pipeline: PipelineType,
+    ) -> Iterator[str]:
+        """Stream semantic/reasoning execution."""
 
-        response = self._agent_manager.execute(
+        context = None
+
+        if pipeline in (
+            PipelineType.SEMANTIC,
+            PipelineType.REASONING,
+        ):
+
+            words = prompt.split()
+
+            for word in words:
+
+                if (
+                    "." in word
+                    or "/" in word
+                    or "\\" in word
+                ):
+                    plan = self._parser.parse(
+                        "read_file",
+                        f"read {word}",
+                    )
+
+                    context = self._context_builder.build(
+                        plan=plan,
+                        context_budget=self._resource_manager.context_budget(),
+                    )
+
+                    break
+
+        prompt_context = self._prompt_manager.build(
+            pipeline=pipeline,
+            user_prompt=prompt,
+            context=context,
+        )
+
+        yield from self._agent_manager.execute_stream(
             AgentRequest(
-                prompt=prompt,
+                system_prompt=prompt_context.system_prompt,
+                prompt=prompt_context.user_prompt,
             )
         )
 
-        return RuntimeResponse(
-            content=response.response,
-        )
 
-    def _execute_deterministic(
+
+    def _execute_deterministic_stream(
         self,
         prompt: str,
         tool_name: str | None,
         intent: IntentType,
-    ) -> RuntimeResponse:
-        """Execute deterministic requests."""
+    ) -> Iterator[str]:
+        """Execute deterministic requests as a stream."""
 
         if tool_name is None:
-            return self._execute_agent(prompt)
+            raise PipelineDispatchError(
+                "Deterministic pipeline requires a tool."
+            )
 
         plan = self._parser.parse(
             tool_name,
@@ -113,11 +171,15 @@ class RuntimeManager:
         )
 
         if plan.empty:
-            return RuntimeResponse(
-                content="Nothing to execute.",
-            )
+            yield "Nothing to execute."
+            return
 
-        output: list[str] = []
+        context = ToolExecutionContext(
+            workspace_manager=self._workspace_manager,
+            security_manager=self._security_manager,
+        )
+
+        first = True
 
         for step in plan.steps:
 
@@ -125,15 +187,13 @@ class RuntimeManager:
                 step.tool,
                 ToolExecutionRequest(
                     arguments=step.arguments,
-                    context=ToolExecutionContext(
-                        workspace_manager=self._workspace_manager,
-                        security_manager=self._security_manager,
-                    ),
+                    context=self._tool_context,
                 ),
             )
 
-            output.append(result.content)
+            if not first:
+                yield "\n"
 
-        return RuntimeResponse(
-            content="\n".join(output),
-        )
+            first = False
+
+            yield result.content

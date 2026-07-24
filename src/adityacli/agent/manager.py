@@ -10,6 +10,7 @@ from .models import (
     AgentRequest,
     AgentResponse,
 )
+from .exceptions import AgentNotAvailableError
 
 class AgentManager:
     """Manage agent execution."""
@@ -53,8 +54,9 @@ class AgentManager:
         """Execute the active agent."""
 
         if self._agent is None:
-            raise RuntimeError("No active agent.")
-
+            raise AgentNotAvailableError(
+                "No active agent."
+            )
         return self._agent.execute(request)
     
     def execute_stream(
@@ -64,6 +66,7 @@ class AgentManager:
         """Execute the active agent with streaming."""
 
         if self._agent is None:
-            raise RuntimeError("No active agent.")
-
+            raise AgentNotAvailableError(
+                "No active agent."
+            )
         return self._agent.execute_stream(request)

@@ -52,7 +52,7 @@ class ReadFileTool(ToolInterface):
         workspace = request.context.workspace_manager
 
         try:
-            file_path = workspace.resolve(Path(path))
+            file_path = workspace.resolve_existing_file(Path(path))
 
             return ToolExecutionResult(
                 success=True,
