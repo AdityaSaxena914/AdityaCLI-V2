@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from .models import (
-    conversation,
     ConversationMessage,
 )
 

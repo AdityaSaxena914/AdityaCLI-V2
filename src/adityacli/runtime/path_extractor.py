@@ -8,7 +8,7 @@ class PathExtractor:
     """Extract workspace file paths from free-form text."""
 
     _PATTERN = re.compile(
-        r"((?:[\w.-]+[/\\])*[\w.-]+\.[A-Za-z0-9]+)"
+        r"((?:[\w.-]+[/\\])+[\w.-]+|\b[\w.-]+\.(?:py|md|txt|json|yaml|yml|toml|ini|cfg|lock)\b)"
     )
 
     def extract(

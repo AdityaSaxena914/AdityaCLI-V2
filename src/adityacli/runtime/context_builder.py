@@ -10,6 +10,10 @@ from .context_models import (
     ContextDocument,
     ContextSource,
 )
+from adityacli.repository.models import (
+    RepositoryReference,
+)
+
 
 class ContextBuilder:
     """Build deterministic context for language models."""
@@ -39,6 +43,13 @@ class ContextBuilder:
                         self._build_file(
                             path,
                             context_budget,
+                        ).documents
+                    )
+
+                case "read_symbol":
+                    bundle.documents.extend(
+                        self._build_symbol_reference(
+                            str(step.arguments["symbol"]),
                         ).documents
                     )
 
@@ -113,3 +124,41 @@ class ContextBuilder:
                 )
             ]
         )
+
+    def _build_symbol(
+        self,
+        reference: RepositoryReference,
+    ) -> ContextBundle:
+
+        repository = self._workspace.repository
+
+        content = repository.read_lines(
+            reference.path,
+            reference.start_line,
+            reference.end_line,
+        )
+
+        return ContextBundle(
+            documents=[
+                ContextDocument(
+                    source=ContextSource.FILESYSTEM,
+                    title=reference.title,
+                    path=reference.path,
+                    content=content,
+                )
+            ]
+        )
+
+    def _build_symbol_reference(
+        self,
+        symbol: str,
+    ) -> ContextBundle:
+
+        repository = self._workspace.repository
+
+        reference = repository.resolve_symbol(symbol)
+
+        if reference is None:
+            return ContextBundle()
+
+        return self._build_symbol(reference)

@@ -26,6 +26,8 @@ from .parser import RuntimeParser
 from adityacli.conversation.manager import ConversationManager
 from .file_reference_resolver import FileReferenceResolver
 from .path_extractor import PathExtractor
+from adityacli.repository.symbol_extractor import SymbolExtractor
+from .parser_models import RuntimePlan, RuntimeStep
 
 class RuntimeManager:
     """Runtime-first execution manager."""
@@ -71,6 +73,7 @@ class RuntimeManager:
             workspace_manager=self._workspace_manager,
             security_manager=self._security_manager,
         )
+        self._symbol_extractor = SymbolExtractor()
 
         
     def execute(
@@ -93,10 +96,6 @@ class RuntimeManager:
         """Execute a user request as a stream."""
 
         self._resource_manager.validate()
-
-        prompt = self._file_reference_resolver.resolve(
-            prompt,
-        )
 
         intent = self._intent_router.route(
             prompt,
@@ -133,8 +132,10 @@ class RuntimeManager:
             PipelineType.REASONING,
         ):
             path = self._path_extractor.extract(prompt)
+            
 
             if path is not None:
+
                 plan = self._parser.parse(
                     "read_file",
                     f"read {path.as_posix()}",
@@ -145,6 +146,86 @@ class RuntimeManager:
                         plan=plan,
                         context_budget=self._resource_manager.context_budget(),
                     )
+
+            else:
+
+                symbol = self._symbol_extractor.extract(
+                    prompt,
+                )
+                
+                if symbol is not None:
+
+                    repository = self._workspace_manager.repository
+
+                    reference = repository.resolve_symbol(
+                        symbol,
+                    )
+
+                    if reference is not None:
+                        
+
+                        plan = RuntimePlan(
+                            steps=[
+                                RuntimeStep(
+                                    tool="read_symbol",
+                                    arguments={
+                                        "symbol": symbol,
+                                    },
+                                )
+                            ]
+                        )
+            
+                        context = self._context_builder.build(
+                            plan=plan,
+                            context_budget=self._resource_manager.context_budget(),
+                        )
+
+
+                    else:
+
+                        prompt = self._file_reference_resolver.resolve(
+                            prompt,
+                        )
+
+                        path = self._path_extractor.extract(
+                            prompt,
+                        )
+
+                        if path is not None:
+
+                            plan = self._parser.parse(
+                                "read_file",
+                                f"read {path.as_posix()}",
+                            )
+
+                            if not plan.empty:
+                                context = self._context_builder.build(
+                                    plan=plan,
+                                    context_budget=self._resource_manager.context_budget(),
+                                )
+
+                else:
+
+                    prompt = self._file_reference_resolver.resolve(
+                        prompt,
+                    )
+
+                    path = self._path_extractor.extract(
+                        prompt,
+                    )
+
+                    if path is not None:
+
+                        plan = self._parser.parse(
+                            "read_file",
+                            f"read {path.as_posix()}",
+                        )
+
+                        if not plan.empty:
+                            context = self._context_builder.build(
+                                plan=plan,
+                                context_budget=self._resource_manager.context_budget(),
+                            )
                 
 
         prompt_context = self._prompt_manager.build(

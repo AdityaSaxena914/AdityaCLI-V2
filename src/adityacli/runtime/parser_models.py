@@ -5,7 +5,10 @@ from pydantic import BaseModel, Field
 
 class RuntimeStep(BaseModel):
     tool: str
-    arguments: dict[str, object] = Field(default_factory=dict)
+
+    arguments: dict[str, object] = Field(
+        default_factory=dict,
+    )
 
 
 class RuntimePlan(BaseModel):

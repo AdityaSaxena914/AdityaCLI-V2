@@ -10,6 +10,7 @@ from .models import (
 )
 from .resolver import WorkspaceFileResolver
 from .validators import WorkspaceValidator
+from adityacli.repository import RepositoryManager
 
 
 class WorkspaceManager:
@@ -19,6 +20,7 @@ class WorkspaceManager:
         self._workspace: Workspace | None = None
         self._index: WorkspaceIndex | None = None
         self._resolver: WorkspaceFileResolver | None = None
+        self._repository: RepositoryManager | None = None
 
     @property
     def workspace(self) -> Workspace:
@@ -44,12 +46,18 @@ class WorkspaceManager:
         self._index = WorkspaceIndex(path)
         self._resolver = WorkspaceFileResolver(self._index)
 
+        self._repository = RepositoryManager()
+        self._repository.build(path)
+
+
     def unload(self) -> None:
         """Unload the active workspace."""
 
         self._workspace = None
         self._index = None
         self._resolver = None
+        self._repository = None
+        
 
     def resolve(
         self,
@@ -124,3 +132,14 @@ class WorkspaceManager:
             )
 
         return self._resolver.candidates(filename)
+
+    @property
+    def repository(self) -> RepositoryManager:
+        """Return the repository manager."""
+
+        if self._repository is None:
+            raise InvalidWorkspaceError(
+                "Repository index is unavailable."
+            )
+
+        return self._repository
