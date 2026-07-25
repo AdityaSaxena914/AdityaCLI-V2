@@ -320,12 +320,17 @@ class RepositoryManager:
         name: str,
     ) -> list[RepositoryReference]:
 
+        lookup = name
+
+        if "." in lookup:
+            _, _, lookup = lookup.partition(".")
+
         references: list[RepositoryReference] = []
 
         for function in self.functions():
 
             if any(
-                call.name == name
+                call.name == lookup
                 for call in function.calls
             ):
 
@@ -352,7 +357,7 @@ class RepositoryManager:
                 for method in cls.methods:
 
                     if not any(
-                        call.name == name
+                        call.name == lookup
                         for call in method.calls
                     ):
                         continue
@@ -365,6 +370,13 @@ class RepositoryManager:
                             end_line=method.end_line or method.line,
                         )
                     )
+
+        references.sort(
+            key=lambda ref: (
+                ref.path.as_posix(),
+                ref.start_line,
+            )
+        )
 
         return references
 

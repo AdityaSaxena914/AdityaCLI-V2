@@ -13,7 +13,7 @@ from .context_models import (
 from adityacli.repository.models import (
     RepositoryReference,
 )
-
+from adityacli.repository.query_type import RepositoryQueryType
 
 class ContextBuilder:
     """Build deterministic context for language models."""
@@ -43,13 +43,6 @@ class ContextBuilder:
                         self._build_file(
                             path,
                             context_budget,
-                        ).documents
-                    )
-
-                case "read_symbol":
-                    bundle.documents.extend(
-                        self._build_symbol_reference(
-                            str(step.arguments["symbol"]),
                         ).documents
                     )
 
@@ -149,16 +142,35 @@ class ContextBuilder:
             ]
         )
 
-    def _build_symbol_reference(
+    def build_repository(
         self,
-        symbol: str,
+        query: RepositoryQueryType | None,
+        target: str,
+        references: list[RepositoryReference],
     ) -> ContextBundle:
 
-        repository = self._workspace.repository
+        operation = query.name if query is not None else "UNKNOWN"
 
-        reference = repository.resolve_symbol(symbol)
+        bundle = ContextBundle(
+            documents=[
+                ContextDocument(
+                    source=ContextSource.REPOSITORY,
+                    title="Repository Query",
+                    content=(
+                        f"Operation: {operation}\n"
+                        f"Target: {target}\n\n"
+                        f"The following {len(references)} document(s) are the "
+                        "complete deterministic results returned by the repository index.\n"
+                        "Answer only from these documents.\n"
+                        "Do not infer additional results."
+                    ),
+                )
+            ]
+        )
 
-        if reference is None:
-            return ContextBundle()
+        for reference in references:
+            bundle.documents.extend(
+                self._build_symbol(reference).documents
+            )
 
-        return self._build_symbol(reference)
+        return bundle

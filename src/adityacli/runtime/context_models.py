@@ -16,6 +16,7 @@ class ContextSource(str, Enum):
     MCP = "mcp"
     RAG = "rag"
     CONVERSATION = "conversation"
+    REPOSITORY = "repository"
 
 
 class ContextDocument(BaseModel):
