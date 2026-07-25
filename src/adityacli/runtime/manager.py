@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-from pathlib import Path
 from collections.abc import Iterator
 from adityacli.agent import (
     AgentManager,
@@ -26,6 +24,7 @@ from .models import (
 )
 from .parser import RuntimeParser
 from adityacli.conversation.manager import ConversationManager
+from .file_reference_resolver import FileReferenceResolver
 from .path_extractor import PathExtractor
 
 class RuntimeManager:
@@ -62,6 +61,10 @@ class RuntimeManager:
 
         self._prompt_manager = PromptManager()
         self._parser = RuntimeParser()
+        self._file_reference_resolver = FileReferenceResolver(
+            workspace_manager,
+        )
+
         self._path_extractor = PathExtractor()
 
         self._tool_context: ToolExecutionContext = ToolExecutionContext(
@@ -91,9 +94,13 @@ class RuntimeManager:
 
         self._resource_manager.validate()
 
-        intent = self._intent_router.route(prompt)
+        prompt = self._file_reference_resolver.resolve(
+            prompt,
+        )
 
-        
+        intent = self._intent_router.route(
+            prompt,
+        )
 
         pipeline = self._pipeline_dispatcher.dispatch(
             intent,

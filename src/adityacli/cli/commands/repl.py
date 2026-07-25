@@ -5,7 +5,9 @@ from rich.console import Console
 from rich.prompt import Prompt
 from adityacli.application import Application
 from adityacli.exceptions import AdityaCLIError
-
+from adityacli.runtime.exceptions import (
+    AmbiguousFileReferenceError,
+)
 console = Console()
 
 
@@ -34,6 +36,48 @@ def repl(
                 continue
 
             console.print("[bold blue]Assistant[/bold blue]", end=": ")
+
+            for chunk in app.runtime_manager.execute_stream(prompt):
+                console.print(
+                    chunk,
+                    end="",
+                    highlight=False,
+                    soft_wrap=True,
+                )
+
+            console.print("\n")
+
+        except AmbiguousFileReferenceError as exc:
+
+            console.print(
+                "\nMultiple files matched:\n"
+            )
+
+            for i, match in enumerate(exc.matches, start=1):
+                console.print(f"{i}. {match}")
+
+            choice = Prompt.ask(
+                "\nChoose a file",
+            )
+
+            try:
+                selected = exc.matches[int(choice) - 1]
+            except Exception:
+                console.print(
+                    "[red]Invalid selection.[/red]"
+                )
+                continue
+
+            prompt = prompt.replace(
+                exc.filename,
+                selected,
+                1,
+            )
+
+            console.print(
+                "\n[bold blue]Assistant[/bold blue]: ",
+                end="",
+            )
 
             for chunk in app.runtime_manager.execute_stream(prompt):
                 console.print(

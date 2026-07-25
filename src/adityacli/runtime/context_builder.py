@@ -55,8 +55,8 @@ class ContextBuilder:
     ) -> ContextBundle:
         """Build context from a workspace file."""
 
-        file_path = self._workspace.resolve_existing_file(path)
-        
+        file_path = self._workspace.resolve_file(path)
+
         character_budget = (
             context_budget
             * CHARACTERS_PER_TOKEN
