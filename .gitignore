@@ -156,3 +156,5 @@ yarn-error.log*
 
 private/
 *.ps1
+docs/
+*.txt
