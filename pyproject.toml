@@ -22,5 +22,10 @@ dependencies = [
     "ddgs>=9.5.5",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2,<9",
+]
+
 [project.scripts]
 aditya = "adityacli.cli.main:main"

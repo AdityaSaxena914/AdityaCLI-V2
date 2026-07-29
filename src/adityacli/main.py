@@ -1,9 +1,15 @@
 from pathlib import Path
 
-from cli import CLI
-from config import AppConfig, LMStudioConfig, SecurityConfig, WorkspaceConfig
-from core.runtime import Runtime
-from llm.client import LLMClient
+from adityacli.cli import CLI
+from adityacli.config import (
+    AppConfig,
+    LMStudioConfig,
+    SecurityConfig,
+    WorkspaceConfig,
+)
+from adityacli.core.runtime import Runtime
+from adityacli.llm.client import LLMClient
+from adityacli.tools.registry import ToolRegistry
 
 
 def main() -> None:
@@ -16,7 +22,17 @@ def main() -> None:
     )
 
     client = LLMClient(config.lmstudio)
-    runtime = Runtime(config, client)
+
+    registry = ToolRegistry(
+        config=config,
+    )
+
+    runtime = Runtime(
+        config=config,
+        client=client,
+        registry=registry,
+    )
+
     cli = CLI(runtime)
 
     cli.run()

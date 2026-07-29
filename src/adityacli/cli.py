@@ -1,8 +1,9 @@
 from rich.console import Console
-from rich.prompt import Prompt
+from rich.prompt import Confirm, Prompt
 
-from constants import APP_NAME, APP_VERSION, PROMPT
-from core.runtime import Runtime
+from adityacli.constants import APP_NAME, APP_VERSION, PROMPT
+from adityacli.core.models import ChatResponse, OverwriteRequest
+from adityacli.core.runtime import Runtime
 
 
 class CLI:
@@ -37,9 +38,41 @@ class CLI:
                 continue
 
             try:
-                response = self._runtime.chat(user_input)
-                self._console.print(f"\n[bold green]Assistant:[/]")
-                self._console.print(response)
-                self._console.print()
+                result = self._runtime.chat(user_input)
+
+                if isinstance(result, ChatResponse):
+                    self._console.print("\n[bold green]Assistant:[/]")
+                    self._console.print(result.content)
+                    self._console.print()
+                    continue
+
+                if isinstance(result, OverwriteRequest):
+                    self._console.print()
+
+                    self._console.print(
+                        "[bold yellow]Generated files:[/]"
+                    )
+
+                    for path in sorted(result.files):
+                        self._console.print(f"  • {path}")
+
+                    overwrite = Confirm.ask(
+                        "Write these files?",
+                        default=False,
+                    )
+
+                    if overwrite:
+                        self._runtime.confirm_overwrite(result)
+
+                        self._console.print(
+                            "[bold green]Files written successfully.[/]\n"
+                        )
+                    else:
+                        self._console.print(
+                            "[yellow]Operation cancelled.[/]\n"
+                        )
+
             except Exception as exc:
-                self._console.print(f"[bold red]Error:[/] {exc}")
+                self._console.print(
+                    f"[bold red]Error:[/] {exc}"
+                )

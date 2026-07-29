@@ -1,22 +1,31 @@
-from pathlib import Path
+from __future__ import annotations
 
-from config import AppConfig
-from constants import DEFAULT_ENCODING, FILE_HEADER
-from core.models import Command
-from exceptions import FileTooLargeError, InvalidPathError
-from tools.base import BaseTool
+import hashlib
+from adityacli.config import AppConfig
+from adityacli.constants import DEFAULT_ENCODING, FILE_HEADER
+from adityacli.core.models import (
+    CachedFile,
+    Command,
+    ToolMetadata,
+    ToolResult,
+)
+from adityacli.exceptions import (
+    FileTooLargeError,
+    InvalidPathError,
+)
+from adityacli.tools.base import BaseTool
 
 
 class EditTool(BaseTool):
-    """Edit tool."""
+    """Generate a complete replacement for an existing file."""
+    def __init__(self, config: AppConfig) -> None:
+        self._config = config
 
-    @property
-    def name(self) -> str:
-        return "edit"
-
-    def execute(self, command: Command) -> str:
+    def execute(self, command: Command) -> ToolResult:
         if len(command.arguments) != 1:
-            raise InvalidPathError("Expected exactly one file path.")
+            raise InvalidPathError(
+                "Expected exactly one file path."
+            )
 
         workspace = self._config.workspace.root.resolve()
         relative_path = command.arguments[0]
@@ -24,36 +33,48 @@ class EditTool(BaseTool):
         path = (workspace / relative_path).resolve()
 
         if not path.is_relative_to(workspace):
-            raise InvalidPathError("Path is outside the workspace.")
+            raise InvalidPathError(
+                "Path is outside the workspace."
+            )
 
         if not path.exists():
             raise FileNotFoundError(relative_path)
 
         if not path.is_file():
-            raise InvalidPathError(f"{relative_path} is not a file.")
+            raise InvalidPathError(
+                f"{relative_path} is not a file."
+            )
 
         if path.stat().st_size > self._config.workspace.max_file_size:
-            raise FileTooLargeError(f"{relative_path} exceeds the maximum file size.")
+            raise FileTooLargeError(
+                f"{relative_path} exceeds the maximum file size."
+            )
 
-        content = path.read_text(encoding=DEFAULT_ENCODING)
+        content = path.read_text(
+            encoding=DEFAULT_ENCODING,
+        )
 
-        return (
+        prompt = (
             "Modify the following file according to the user's request.\n\n"
             "Return ONLY the complete updated file contents.\n\n"
             f"{FILE_HEADER.format(path=relative_path)}\n\n"
             f"{content}\n\n"
-            f"User Request:\n{command.prompt}"
+            "User Request:\n"
+            f"{command.prompt}"
         )
 
-    def write_file(self, relative_path: str, content: str) -> None:
-        workspace = self._config.workspace.root.resolve()
-
-        path = (workspace / relative_path).resolve()
-
-        if not path.is_relative_to(workspace):
-            raise InvalidPathError(relative_path)
-
-        path.write_text(
-            content,
-            encoding=self._config.workspace.encoding,
+        return ToolResult(
+            prompt=prompt,
+            metadata=ToolMetadata(
+                files_read=(
+                    CachedFile(
+                        path=relative_path,
+                        content=content,
+                        sha256=hashlib.sha256(
+                            content.encode("utf-8")
+                        ).hexdigest(),
+                    ),
+                ),
+                files_written=(relative_path,),
+            ),
         )

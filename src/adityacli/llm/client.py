@@ -1,7 +1,9 @@
 from openai import OpenAI
+from openai import OpenAIError
 
-from config import LMStudioConfig
-from core.models import LLMRequest, LLMResponse
+from adityacli.config import LMStudioConfig
+from adityacli.core.models import Message
+from adityacli.exceptions import ConnectionError, LLMError
 
 
 class LLMClient:
@@ -15,18 +17,30 @@ class LLMClient:
         )
         self._model = config.model
 
-    def generate(self, request: LLMRequest) -> LLMResponse:
-        response = self._client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {
-                    "role": message.role.value,
-                    "content": message.content,
-                }
-                for message in request.messages
-            ],
-        )
+    def generate(self, messages: list[Message]) -> str:
+        """
+        Generate a response from the language model.
+        """
 
-        content = response.choices[0].message.content or ""
+        try:
+            response = self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {
+                        "role": message.role.value,
+                        "content": message.content,
+                    }
+                    for message in messages
+                ],
+            )
+        except OpenAIError as exc:
+            raise ConnectionError(str(exc)) from exc
+        except Exception as exc:
+            raise LLMError(str(exc)) from exc
 
-        return LLMResponse(content=content)
+        content = response.choices[0].message.content
+
+        if content is None:
+            return ""
+
+        return content

@@ -1,25 +1,26 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
-from config import AppConfig
-from core.models import Command
+from adityacli.core.models import Command, ToolResult
 
 
 class BaseTool(ABC):
-    """Base tool."""
+    """
+    Base class for all deterministic tools.
 
-    def __init__(self, config: AppConfig) -> None:
-        self._config = config
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        ...
+    Tools perform deterministic work only.
+    They never communicate with the LLM.
+    They return structured data for the Runtime.
+    """
 
     @abstractmethod
-    def execute(self, command: Command) -> str:
+    def execute(self, command: Command) -> ToolResult:
         """
         Execute the tool.
 
-        Returns the prompt that should be injected into the LLM.
+        Returns:
+            ToolResult containing the prompt for the LLM and structured
+            metadata for the Runtime.
         """
-        ...
+        raise NotImplementedError

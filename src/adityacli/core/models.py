@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 
 class Role(StrEnum):
@@ -53,3 +54,86 @@ class Workspace:
     """Workspace."""
 
     root: Path
+
+
+# ---------------------------------------------------------------------------
+# Runtime results
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True)
+class ChatResponse:
+    """Normal assistant response."""
+
+    content: str
+
+
+@dataclass(slots=True)
+class OverwriteRequest:
+    """
+    Pending overwrite confirmation.
+
+    Files maps workspace-relative paths to the generated contents that
+    will be written if the user confirms.
+    """
+
+    files: dict[str, str]
+
+
+RuntimeResult = ChatResponse | OverwriteRequest
+
+
+# ---------------------------------------------------------------------------
+# Tool execution models
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True, frozen=True)
+class CachedFile:
+    """
+    A deterministic file that has been collected by a tool.
+
+    Runtime decides whether it should be persisted into session memory.
+    """
+
+    path: str
+    content: str
+    sha256: str
+
+
+@dataclass(slots=True, frozen=True)
+class ToolMetadata:
+    """
+    Structured metadata returned by deterministic tools.
+
+    Every field is optional.
+    Unused fields remain empty.
+    """
+
+    files_read: tuple[CachedFile, ...] = ()
+
+    files_written: tuple[str, ...] = ()
+
+    search_results: tuple[str, ...] = ()
+
+    web_urls: tuple[str, ...] = ()
+
+    git_command: str | None = None
+
+    extra: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True, frozen=True)
+class ToolResult:
+    """
+    Result returned by every deterministic tool.
+
+    prompt:
+        Context that will be injected into the LLM.
+
+    metadata:
+        Structured information for the Runtime.
+        Runtime never parses prompt text.
+    """
+
+    prompt: str
+
+    metadata: ToolMetadata = field(default_factory=ToolMetadata)

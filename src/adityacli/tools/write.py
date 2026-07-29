@@ -1,66 +1,70 @@
-from pathlib import Path
-
-from config import AppConfig
-from core.models import Command
-from exceptions import FileAlreadyExistsError, InvalidPathError
-from tools.base import BaseTool
+from __future__ import annotations
+from adityacli.config import AppConfig
+from adityacli.core.models import (
+    Command,
+    ToolMetadata,
+    ToolResult,
+)
+from adityacli.exceptions import (
+    FileAlreadyExistsError,
+    InvalidPathError,
+)
+from adityacli.tools.base import BaseTool
 
 
 class WriteTool(BaseTool):
-    """Write tool."""
+    """Generate one or more new files."""
 
-    @property
-    def name(self) -> str:
-        return "write"
+    def __init__(self, config: AppConfig) -> None:
+        self._config = config
+        self._workspace = config.workspace.root.resolve()
 
-    def execute(self, command: Command) -> str:
+    def execute(self, command: Command) -> ToolResult:
         if not command.arguments:
-            raise InvalidPathError("At least one file path is required.")
+            raise InvalidPathError(
+                "At least one file path is required."
+            )
 
-        paths: list[Path] = []
+        paths: list[str] = []
 
-        workspace = self._config.workspace.root.resolve()
+        for relative_path in command.arguments:
+            path = (self._workspace / relative_path).resolve()
 
-        for argument in command.arguments:
-            path = (workspace / argument).resolve()
-
-            if not path.is_relative_to(workspace):
-                raise InvalidPathError(f"Invalid path: {argument}")
+            if not path.is_relative_to(self._workspace):
+                raise InvalidPathError(
+                    f"Invalid path: {relative_path}"
+                )
 
             if path.exists():
-                raise FileAlreadyExistsError(f"{argument} already exists.")
+                raise FileAlreadyExistsError(
+                    f"{relative_path} already exists."
+                )
 
-            paths.append(path)
+            paths.append(relative_path)
 
-        file_list = "\n".join(
-            f"=== FILE: {path.relative_to(workspace)} ==="
-            for path in paths
-        )
+        sections = [
+            "Generate the complete contents for every requested file.",
+            "",
+            "Return ONLY the following format:",
+            "",
+        ]
 
-        prompt = (
-            "Generate the complete contents for the following files.\n\n"
-            f"{file_list}\n\n"
-            "Return every file in the same format.\n\n"
-            "Example:\n"
-            "=== FILE: path/to/file ===\n"
-            "<content>\n\n"
-            f"User Request:\n{command.prompt}"
-        )
+        for path in paths:
+            sections.append(f"=== FILE: {path} ===")
+            sections.append("<complete file contents>")
+            sections.append("")
 
-        return prompt
-
-    def write_files(self, generated: dict[str, str]) -> None:
-        workspace = self._config.workspace.root.resolve()
-
-        for relative_path, content in generated.items():
-            path = (workspace / relative_path).resolve()
-
-            if not path.is_relative_to(workspace):
-                raise InvalidPathError(relative_path)
-
-            path.parent.mkdir(parents=True, exist_ok=True)
-
-            path.write_text(
-                content,
-                encoding=self._config.workspace.encoding,
+        if command.prompt:
+            sections.extend(
+                [
+                    "User Request:",
+                    command.prompt,
+                ]
             )
+
+        return ToolResult(
+            prompt="\n".join(sections),
+            metadata=ToolMetadata(
+                files_written=tuple(paths),
+            ),
+        )

@@ -1,54 +1,79 @@
-from config import AppConfig
-from core.models import Command
-from providers.base import SearchProvider
-from providers.duckduckgo import DuckDuckGoProvider
-from tools.base import BaseTool
+from __future__ import annotations
+from adityacli.config import AppConfig
+from adityacli.providers.base import SearchProvider
+from adityacli.core.models import (
+    Command,
+    ToolMetadata,
+    ToolResult,
+)
+from adityacli.exceptions import InvalidSyntaxError
+from adityacli.tools.base import BaseTool
 
 
 class WebTool(BaseTool):
-    """Web tool."""
+    """Collect web information using the configured provider."""
 
     def __init__(
         self,
         config: AppConfig,
-        provider: SearchProvider | None = None,
+        provider: SearchProvider | None,
     ) -> None:
-        super().__init__(config)
-        self._provider = provider or DuckDuckGoProvider()
+        self._config = config
+        self._provider = provider
 
-    @property
-    def name(self) -> str:
-        return "web"
+    def execute(
+        self,
+        command: Command,
+    ) -> ToolResult:
+        if len(command.arguments) != 1:
+            raise InvalidSyntaxError(
+                "Expected exactly one search query."
+            )
 
-    def execute(self, command: Command) -> str:
-        query = " ".join(command.arguments)
+        query = command.arguments[0]
 
-        if command.prompt:
-            query = f"{query}\n{command.prompt}".strip()
-
+        if self._provider is None:
+            raise RuntimeError(
+                "No search provider configured."
+            )
         results = self._provider.search(query)
 
-        if not results:
-            return (
-                f"Search Query:\n{query}\n\n"
-                "No search results were found."
+        if results:
+            sections = [
+                f'Web search results for "{query}":',
+                "",
+            ]
+
+            urls: list[str] = []
+
+            for result in results:
+                urls.append(result.url)
+
+                sections.extend(
+                    [
+                        f"Title: {result.title}",
+                        f"URL: {result.url}",
+                        result.body,
+                        "",
+                    ]
+                )
+
+            prompt = "\n".join(sections)
+
+        else:
+            urls = []
+
+            prompt = (
+                f'No web results found for "{query}".'
             )
 
-        prompt = [
-            f"Search Query:\n{query}\n",
-            "Search Results:\n",
-        ]
-
-        for index, result in enumerate(results, start=1):
-            prompt.append(
-                f"{index}.\n"
-                f"Title: {result.title}\n"
-                f"URL: {result.url}\n"
-                f"Body: {result.body}\n"
-            )
-
-        prompt.append(
-            "\nUse the search results above to answer the user's request."
+        return ToolResult(
+            prompt=prompt,
+            metadata=ToolMetadata(
+                web_urls=tuple(urls),
+                extra={
+                    "query": query,
+                    "result_count": len(results),
+                },
+            ),
         )
-
-        return "\n".join(prompt)

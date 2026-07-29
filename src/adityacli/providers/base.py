@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from core.models import SearchResult
+from adityacli.core.models import SearchResult
 
 
 class SearchProvider(ABC):

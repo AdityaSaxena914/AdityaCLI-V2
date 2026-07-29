@@ -1,21 +1,27 @@
-from pathlib import Path
-
-from config import AppConfig
-from core.models import Command
-from exceptions import InvalidSyntaxError
-from tools.base import BaseTool
+from __future__ import annotations
+from adityacli.config import AppConfig
+from adityacli.core.models import (
+    Command,
+    ToolMetadata,
+    ToolResult,
+)
+from adityacli.exceptions import InvalidSyntaxError
+from adityacli.tools.base import BaseTool
 
 
 class SearchTool(BaseTool):
-    """Search tool."""
+    """Deterministically search the workspace."""
+    def __init__(
+        self,
+        config: AppConfig,
+    ) -> None:
+        self._config = config
 
-    @property
-    def name(self) -> str:
-        return "search"
-
-    def execute(self, command: Command) -> str:
+    def execute(self, command: Command) -> ToolResult:
         if len(command.arguments) != 1:
-            raise InvalidSyntaxError("Expected exactly one search query.")
+            raise InvalidSyntaxError(
+                "Expected exactly one search query."
+            )
 
         query = command.arguments[0]
         workspace = self._config.workspace.root.resolve()
@@ -27,25 +33,40 @@ class SearchTool(BaseTool):
                 continue
 
             try:
-                with path.open(
-                    "r",
+                content = path.read_text(
                     encoding=self._config.workspace.encoding,
-                ) as file:
-                    for line_number, line in enumerate(file, start=1):
-                        if query in line:
-                            matches.append(
-                                f"{path.relative_to(workspace)}:{line_number}: {line.rstrip()}"
-                            )
+                )
             except (UnicodeDecodeError, OSError):
                 continue
 
-        if not matches:
-            context = "No matches found."
-        else:
-            context = "\n".join(matches)
+            for line_number, line in enumerate(
+                content.splitlines(),
+                start=1,
+            ):
+                if query in line:
+                    relative = path.relative_to(workspace)
 
-        return (
-            f"Search Query: {query}\n\n"
-            f"Search Results:\n{context}\n\n"
-            f"User Request:\n{command.prompt}"
+                    matches.append(
+                        f"{relative}:{line_number}: {line}"
+                    )
+
+        if matches:
+            prompt = (
+                f'Search results for "{query}":\n\n'
+                + "\n".join(matches)
+            )
+        else:
+            prompt = (
+                f'No matches found for "{query}".'
+            )
+
+        return ToolResult(
+            prompt=prompt,
+            metadata=ToolMetadata(
+                search_results=tuple(matches),
+                extra={
+                    "query": query,
+                    "match_count": len(matches),
+                },
+            ),
         )

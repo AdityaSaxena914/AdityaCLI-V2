@@ -1,7 +1,7 @@
 from ddgs import DDGS
 
-from core.models import SearchResult
-from providers.base import SearchProvider
+from adityacli.core.models import SearchResult
+from adityacli.providers.base import SearchProvider
 
 
 class DuckDuckGoProvider(SearchProvider):

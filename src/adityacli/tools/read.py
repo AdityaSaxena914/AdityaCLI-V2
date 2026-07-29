@@ -1,44 +1,66 @@
-from pathlib import Path
+from __future__ import annotations
 
-from config import AppConfig
-from constants import DEFAULT_ENCODING, FILE_HEADER
-from core.models import Command
-from exceptions import FileTooLargeError, InvalidPathError
-from tools.base import BaseTool
+import hashlib
+from pathlib import Path
+from adityacli.config import AppConfig
+from adityacli.core.models import (
+    CachedFile,
+    Command,
+    ToolMetadata,
+    ToolResult,
+)
+from adityacli.tools.base import BaseTool
 
 
 class ReadTool(BaseTool):
-    """Read tool."""
+    """
+    Read one or more files from the workspace.
 
-    @property
-    def name(self) -> str:
-        return "read"
+    The Runtime decides whether these files should be persisted into
+    session memory.
+    """
 
-    def execute(self, command: Command) -> str:
-        if len(command.arguments) != 1:
-            raise InvalidPathError("Expected exactly one file path.")
+    def __init__(self, config: AppConfig) -> None:
+        self._config = config
+        self._workspace = config.workspace.root.resolve()
 
-        path = self._config.workspace.root / command.arguments[0]
-        path = path.resolve()
+    def execute(self, command: Command) -> ToolResult:
+        sections: list[str] = []
+        files_read: list[CachedFile] = []
 
-        workspace = self._config.workspace.root.resolve()
+        for relative_path in command.arguments:
+            path = self._workspace / relative_path
 
-        if not path.is_relative_to(workspace):
-            raise InvalidPathError("Path is outside the workspace.")
+            content = path.read_text(encoding="utf-8")
 
-        if not path.exists():
-            raise FileNotFoundError(path)
+            files_read.append(
+                CachedFile(
+                    path=relative_path,
+                    content=content,
+                    sha256=self._sha256(content),
+                )
+            )
 
-        if not path.is_file():
-            raise InvalidPathError(f"{path} is not a file.")
+            sections.append(
+                "\n".join(
+                    [
+                        f"=== FILE: {relative_path} ===",
+                        content,
+                    ]
+                )
+            )
 
-        if path.stat().st_size > self._config.workspace.max_file_size:
-            raise FileTooLargeError(f"{path} exceeds the maximum file size.")
+        prompt = "\n\n".join(sections)
 
-        content = path.read_text(encoding=DEFAULT_ENCODING)
-
-        return (
-            f"{FILE_HEADER.format(path=command.arguments[0])}\n\n"
-            f"{content}\n\n"
-            f"{command.prompt}"
+        return ToolResult(
+            prompt=prompt,
+            metadata=ToolMetadata(
+                files_read=tuple(files_read),
+            ),
         )
+
+    @staticmethod
+    def _sha256(content: str) -> str:
+        return hashlib.sha256(
+            content.encode("utf-8")
+        ).hexdigest()

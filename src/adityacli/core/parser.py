@@ -1,5 +1,5 @@
-from core.models import Command, Tool
-from exceptions import InvalidCommandError, InvalidSyntaxError
+from adityacli.core.models import Command, Tool
+from adityacli.exceptions import InvalidCommandError, InvalidSyntaxError
 
 
 class Parser:

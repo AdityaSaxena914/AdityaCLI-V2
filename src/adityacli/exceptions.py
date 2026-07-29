@@ -80,3 +80,6 @@ class ShellExecutionError(SecurityError):
 
 class GitError(AdityaCLIError):
     """Git error."""
+
+class ToolExecutionError(AdityaCLIError):
+    """Raised when a deterministic tool fails during execution."""

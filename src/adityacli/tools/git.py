@@ -1,41 +1,65 @@
-import subprocess
+from __future__ import annotations
 
-from config import AppConfig
-from core.models import Command
-from exceptions import GitError, InvalidSyntaxError
-from tools.base import BaseTool
+import subprocess
+from adityacli.config import AppConfig
+from adityacli.core.models import (
+    Command,
+    ToolMetadata,
+    ToolResult,
+)
+from adityacli.exceptions import ToolExecutionError
+from adityacli.tools.base import BaseTool
 
 
 class GitTool(BaseTool):
-    """Git tool."""
+    """Execute deterministic Git commands."""
+    def __init__(self, config: AppConfig) -> None:
+        self._config = config
 
-    @property
-    def name(self) -> str:
-        return "git"
-
-    def execute(self, command: Command) -> str:
+    def execute(self, command: Command) -> ToolResult:
         if not command.arguments:
-            raise InvalidSyntaxError("Git subcommand is required.")
+            raise ToolExecutionError(
+                "Git command cannot be empty."
+            )
 
-        result = subprocess.run(
-            ["git", *command.arguments],
-            cwd=self._config.workspace.root,
-            shell=False,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        git_command = ["git", *command.arguments]
 
-        if result.returncode != 0:
-            raise GitError(result.stderr.strip() or "Git command failed.")
+        try:
+            result = subprocess.run(
+                git_command,
+                cwd=self._config.workspace.root,
+                capture_output=True,
+                text=True,
+                shell=False,
+                check=False,
+            )
+        except OSError as exc:
+            raise ToolExecutionError(
+                f"Failed to execute git: {exc}"
+            ) from exc
 
         output = result.stdout.strip()
 
-        return (
-            f"Git Command:\n"
-            f"git {' '.join(command.arguments)}\n\n"
-            f"Git Output:\n"
-            f"{output}\n\n"
-            f"User Request:\n"
-            f"{command.prompt}"
+        if result.stderr.strip():
+            if output:
+                output += "\n\n"
+            output += result.stderr.strip()
+
+        if not output:
+            output = "Git command produced no output."
+
+        prompt = (
+            f"Git command:\n"
+            f"{' '.join(git_command)}\n\n"
+            f"Output:\n{output}"
+        )
+
+        return ToolResult(
+            prompt=prompt,
+            metadata=ToolMetadata(
+                git_command=" ".join(git_command),
+                extra={
+                    "return_code": result.returncode,
+                },
+            ),
         )
