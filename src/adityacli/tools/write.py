@@ -37,15 +37,16 @@ class WriteTool(BaseTool):
 
         sections = [
             load_prompt("write"),
-            "",
-            "Required format:",
-            "",
         ]
 
-        for path in paths:
-            sections.append(f"=== FILE: {path} ===")
-            sections.append("<complete file contents>")
-            sections.append("")
+        if command.prompt:
+            sections.extend(
+                [
+                    "",
+                    "User Request:",
+                    command.prompt,
+                ]
+            )
 
         if command.prompt:
             sections.extend(

@@ -1,5 +1,5 @@
 from adityacli.core.models import Command, Tool
-from adityacli.exceptions import InvalidCommandError, InvalidSyntaxError
+from adityacli.exceptions import InvalidCommandError, InvalidSyntaxError, InvalidPathError
 
 
 class Parser:
@@ -44,3 +44,42 @@ class Parser:
             arguments=arguments,
             prompt=prompt,
         )
+
+
+    def validate(
+        self,
+        command: Command,
+    ) -> None:
+        match command.tool:
+            case Tool.WRITE:
+                if not command.arguments:
+                    raise InvalidPathError(
+                        "At least one file path is required."
+                    )
+
+            case Tool.EDIT:
+                if len(command.arguments) != 1:
+                    raise InvalidPathError(
+                        "Expected exactly one file path."
+                    )
+
+            case Tool.READ:
+                if not command.arguments:
+                    raise InvalidPathError(
+                        "At least one file path is required."
+                    )
+
+            case Tool.SEARCH:
+                if len(command.arguments) != 1:
+                    raise InvalidSyntaxError(
+                        "Expected exactly one search query."
+                    )
+
+            case Tool.WEB:
+                if not command.arguments:
+                    raise InvalidSyntaxError(
+                        "Expected a search query."
+                    )
+
+            case _:
+                pass

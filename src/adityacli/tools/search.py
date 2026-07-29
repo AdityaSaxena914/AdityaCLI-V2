@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from adityacli.config import AppConfig
 from adityacli.core.models import (
     Command,
@@ -9,27 +10,102 @@ from adityacli.exceptions import InvalidSyntaxError
 from adityacli.tools.base import BaseTool
 
 
+_IGNORE_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    "build",
+    "dist",
+    ".sessions",
+}
+
+_IGNORE_SUFFIXES = {
+    ".pyc",
+    ".pyo",
+}
+
+
 class SearchTool(BaseTool):
     """Deterministically search the workspace."""
+
     def __init__(
         self,
         config: AppConfig,
     ) -> None:
         self._config = config
 
-    def execute(self, command: Command) -> ToolResult:
+    def execute(
+        self,
+        command: Command,
+    ) -> ToolResult:
         if len(command.arguments) != 1:
             raise InvalidSyntaxError(
                 "Expected exactly one search query."
             )
 
         query = command.arguments[0]
+        query_lower = query.lower()
+
         workspace = self._config.workspace.root.resolve()
+
+        # ------------------------------------------------------------------
+        # Filename search
+        # ------------------------------------------------------------------
+
+        filename_matches: list[str] = []
+
+        for path in workspace.rglob("*"):
+            if any(
+                part in _IGNORE_DIRS
+                for part in path.parts
+            ):
+                continue
+
+            if not path.is_file():
+                continue
+
+            stem = path.stem.lower()
+            name = path.name.lower()
+
+            if (
+                query_lower == stem
+                or query_lower == name
+            ):
+                filename_matches.append(
+                    str(path.relative_to(workspace))
+                )
+
+        if filename_matches:
+            return ToolResult(
+                prompt="\n".join(filename_matches),
+                metadata=ToolMetadata(
+                    search_results=tuple(filename_matches),
+                    extra={
+                        "query": query,
+                        "match_count": len(filename_matches),
+                    },
+                ),
+                requires_llm=False,
+            )
+
+        # ------------------------------------------------------------------
+        # Content search
+        # ------------------------------------------------------------------
 
         matches: list[str] = []
 
         for path in workspace.rglob("*"):
+            if any(
+                part in _IGNORE_DIRS
+                for part in path.parts
+            ):
+                continue
+
             if not path.is_file():
+                continue
+
+            if path.suffix in _IGNORE_SUFFIXES:
                 continue
 
             try:
@@ -43,11 +119,9 @@ class SearchTool(BaseTool):
                 content.splitlines(),
                 start=1,
             ):
-                if query in line:
-                    relative = path.relative_to(workspace)
-
+                if query_lower in line.lower():
                     matches.append(
-                        f"{relative}:{line_number}: {line}"
+                        f"{path.relative_to(workspace)}:{line_number}: {line}"
                     )
 
         if matches:

@@ -9,7 +9,9 @@ from rich.syntax import Syntax
 from adityacli.constants import APP_NAME, APP_VERSION, PROMPT
 from adityacli.core.models import ChatResponse, OverwriteRequest
 from adityacli.core.runtime import Runtime
-
+from adityacli.error_handler import ErrorHandler
+from adityacli.ui.diff import build_diff
+from adityacli.ui.banner import print_banner
 
 class CLI:
     """Interactive CLI."""
@@ -19,10 +21,17 @@ class CLI:
         self._console = Console()
 
     def run(self) -> None:
-        self._console.print(
-            f"[bold cyan]{APP_NAME}[/] v{APP_VERSION}"
+        print_banner(
+            self._console,
+            workspace=str(self._runtime.config.workspace.root),
+            model=(
+                self._runtime.last_response.model
+                if self._runtime.last_response
+                else "AUTO"
+            ),
+            context_window=65536,
+            continued=self._runtime.continued_session,
         )
-        self._console.print("Type /exit to quit.\n")
 
         while True:
             try:
@@ -39,35 +48,92 @@ class CLI:
 
             if user_input == "/clear":
                 self._runtime.clear()
-                self._console.clear()
+
+                self._console.clear(home=True)
+
+                print_banner(
+                    self._console,
+                    workspace=str(
+                        self._runtime.config.workspace.root
+                    ),
+                    model=(
+                        self._runtime.last_response.model
+                        if self._runtime.last_response
+                        else "AUTO"
+                    ),
+                    context_window=65536,
+                    continued=False,
+                )
+
                 continue
 
+            if user_input == "/help":
+                print_banner(
+                    self._console,
+                    workspace=str(self._runtime.config.workspace.root),
+                    model=(
+                        self._runtime.last_response.model
+                        if self._runtime.last_response is not None
+                        else "Waiting for first response..."
+                    ),
+                    context_window=65536,
+                    continued=self._runtime.continued_session,
+                )
+                continue
+
+
             try:
-                if user_input.startswith("/write") and "\n" not in user_input:
+                command = self._runtime.parser.parse(user_input)
+                
+                if command is not None:
+                    self._runtime.parser.validate(command)
+
+
+                if (
+                    command is not None
+                    and command.tool.name == "WRITE"
+                    and "\n" not in user_input
+                ):
                     description = Prompt.ask(
                         "What would you like to generate?"
                     ).strip()
 
                     if description:
-                        user_input = (
-                            f"{user_input}\n{description}"
-                        )
+                        user_input += "\n" + description
 
-                if user_input.startswith("/edit") and "\n" not in user_input:
+
+                if (
+                    command is not None
+                    and command.tool.name == "EDIT"
+                    and "\n" not in user_input
+                ):
                     instruction = Prompt.ask(
                         "What would you like to change?"
                     ).strip()
 
                     if instruction:
-                        user_input = (
-                            f"{user_input}\n{instruction}"
-                        )
+                        user_input += "\n" + instruction
 
                 result = self._runtime.chat(user_input)
 
                 if isinstance(result, ChatResponse):
                     self._console.print("\n[bold green]Assistant:[/]")
                     self._console.print(result.content)
+                    stats = self._runtime.last_response
+
+                    if stats is not None:
+                        speed = (
+                            stats.completion_tokens / stats.elapsed_seconds
+                            if stats.elapsed_seconds > 0
+                            else 0.0
+                        )
+
+                        self._console.print(
+                            f"[dim]Model:[/] {stats.model} | "
+                            f"[dim]Time:[/] {stats.elapsed_seconds:.2f}s | "
+                            f"[dim]Output:[/] {stats.completion_tokens} tok | "
+                            f"[dim]Speed:[/] {speed:.1f} tok/s"
+                        )
                     self._console.print()
                     continue
 
@@ -83,39 +149,55 @@ class CLI:
                     is_overwrite = bool(existing_files)
 
                     for path, content in result.files.items():
-                        suffix = Path(path).suffix.lower()
-
-                        lexer = {
-                            ".py": "python",
-                            ".md": "markdown",
-                            ".json": "json",
-                            ".toml": "toml",
-                            ".yaml": "yaml",
-                            ".yml": "yaml",
-                            ".html": "html",
-                            ".css": "css",
-                            ".js": "javascript",
-                            ".ts": "typescript",
-                        }.get(suffix, "text")
-
-                        title = (
-                            "Generated"
-                            if user_input.startswith("/write")
-                            else "Preview"
-                        )
-
-                        self._console.print(
-                            Rule(f" {title}: {path} ")
-)
-
-                        self._console.print(
-                            Syntax(
-                                content,
-                                lexer=lexer,
-                                line_numbers=True,
-                                word_wrap=False,
+                        if user_input.startswith("/edit"):
+                            original = Path(path).read_text(
+                                encoding="utf-8",
                             )
-                        )
+
+                            self._console.print(
+                                Rule(f" Changes: {path} ")
+                            )
+
+                            self._console.print(
+                                Syntax(
+                                    build_diff(
+                                        original,
+                                        content,
+                                    ),
+                                    "diff",
+                                    line_numbers=False,
+                                    word_wrap=False,
+                                )
+                            )
+
+                        else:
+                            suffix = Path(path).suffix.lower()
+
+                            lexer = {
+                                ".py": "python",
+                                ".md": "markdown",
+                                ".json": "json",
+                                ".toml": "toml",
+                                ".yaml": "yaml",
+                                ".yml": "yaml",
+                                ".html": "html",
+                                ".css": "css",
+                                ".js": "javascript",
+                                ".ts": "typescript",
+                            }.get(suffix, "text")
+
+                            self._console.print(
+                                Rule(f" Generated: {path} ")
+                            )
+
+                            self._console.print(
+                                Syntax(
+                                    content,
+                                    lexer=lexer,
+                                    line_numbers=True,
+                                    word_wrap=False,
+                                )
+                            )
 
                         self._console.print()
 
@@ -144,6 +226,14 @@ class CLI:
                         )
 
             except Exception as exc:
+                self._console.print()
+
                 self._console.print(
-                    f"[bold red]Error:[/] {exc}"
+                    "[bold red]ERROR[/]"
                 )
+
+                self._console.print(
+                    ErrorHandler.format(exc)
+                )
+
+                self._console.print()

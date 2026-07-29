@@ -119,16 +119,19 @@ class SessionStore:
 
         self._append_statistics(message)
 
-    def clear(self) -> None:
-        """
-        Delete the active session.
-        """
+    def clear(
+        self,
+        model: str,
+        context_window: int,
+    ) -> None:
+        if self._root.exists():
+            for path in self._root.iterdir():
+                path.unlink()
 
-        if not self._root.exists():
-            return
-
-        for path in self._root.iterdir():
-            path.unlink()
+        self.create(
+            model=model,
+            context_window=context_window,
+        )
 
 
 

@@ -2,6 +2,7 @@ from adityacli.config import AppConfig
 from adityacli.core.file_manager import FileManager
 from adityacli.core.models import (
     ChatResponse,
+    LLMResponse,
     OverwriteRequest,
     RuntimeResult,
     Tool,
@@ -35,17 +36,21 @@ class Runtime:
         self._file_manager = FileManager(config)
 
         self._prompt_builder = PromptBuilder()
+        self._last_response: LLMResponse | None = None
 
         self._store = SessionStore(
             config.workspace.root,
         )
 
-        if continue_session and self._store.exists:
+        self._continued_session = (
+            continue_session and self._store.exists
+        )
+
+        if self._continued_session:
             self._session = Session(self._store)
             self._session.load()
         else:
-            self._store.clear()
-            self._store.create(
+            self._store.clear(
                 model=config.lmstudio.model,
                 context_window=65536,
             )
@@ -84,7 +89,11 @@ class Runtime:
             tool_result=tool_result,
         )
 
-        response = self._client.generate(messages)
+        llm_response = self._client.generate(messages)
+
+        self._last_response = llm_response
+
+        response = llm_response.content
 
         self._session.add_assistant(response)
 
@@ -94,7 +103,7 @@ class Runtime:
         if command.tool is Tool.WRITE:
             files = self._response_parser.parse_write_response(
                 response=response,
-                expected_files=command.arguments,
+                paths=command.arguments,
             )
 
             return OverwriteRequest(files)
@@ -128,10 +137,39 @@ class Runtime:
             )
 
     def clear(self) -> None:
-        self._session.clear()
+        system_messages = [
+            message.content
+            for message in self._session.messages
+            if message.role.value == "system"
+        ]
+
+        self._session.clear(
+            model=self._config.lmstudio.model,
+            context_window=65536,
+        )
+
+        for prompt in system_messages:
+            self._session.add_system(prompt)
 
     def add_system_prompt(
         self,
         prompt: str,
     ) -> None:
         self._session.add_system(prompt)
+
+    @property
+    def parser(self) -> Parser:
+        return self._parser
+
+    @property
+    def last_response(self) -> LLMResponse | None:
+        """Return the last LLM response metadata."""
+        return self._last_response
+
+    @property
+    def config(self) -> AppConfig:
+        return self._config
+
+    @property
+    def continued_session(self) -> bool:
+        return self._continued_session

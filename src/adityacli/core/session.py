@@ -52,11 +52,18 @@ class Session:
             )
         )
 
-    def clear(self) -> None:
+    def clear(
+        self,
+        model: str,
+        context_window: int,
+    ) -> None:
         self._messages.clear()
 
         if self._store is not None:
-            self._store.clear()
+            self._store.clear(
+                model=model,
+                context_window=context_window,
+            )
 
     def _append(self, message: Message) -> None:
         self._messages.append(message)

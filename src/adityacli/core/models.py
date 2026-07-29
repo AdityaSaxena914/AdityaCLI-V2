@@ -123,17 +123,21 @@ class ToolMetadata:
 
 @dataclass(slots=True, frozen=True)
 class ToolResult:
-    """
-    Result returned by every deterministic tool.
-
-    prompt:
-        Context that will be injected into the LLM.
-
-    metadata:
-        Structured information for the Runtime.
-        Runtime never parses prompt text.
-    """
 
     prompt: str
     metadata: ToolMetadata = field(default_factory=ToolMetadata)
     requires_llm: bool = True
+
+
+@dataclass(slots=True)
+class LLMResponse:
+    """Language model response."""
+
+    content: str
+    model: str
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+    elapsed_seconds: float
