@@ -28,4 +28,4 @@ dev = [
 ]
 
 [project.scripts]
-aditya = "adityacli.cli.main:main"
+aditya = "adityacli.main:main"

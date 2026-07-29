@@ -158,3 +158,4 @@ private/
 *.ps1
 docs/
 *.txt
+*.sessions

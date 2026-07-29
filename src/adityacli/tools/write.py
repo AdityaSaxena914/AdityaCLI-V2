@@ -5,11 +5,9 @@ from adityacli.core.models import (
     ToolMetadata,
     ToolResult,
 )
-from adityacli.exceptions import (
-    FileAlreadyExistsError,
-    InvalidPathError,
-)
+from adityacli.exceptions import InvalidPathError
 from adityacli.tools.base import BaseTool
+from adityacli.prompts import load_prompt
 
 
 class WriteTool(BaseTool):
@@ -35,17 +33,12 @@ class WriteTool(BaseTool):
                     f"Invalid path: {relative_path}"
                 )
 
-            if path.exists():
-                raise FileAlreadyExistsError(
-                    f"{relative_path} already exists."
-                )
-
             paths.append(relative_path)
 
         sections = [
-            "Generate the complete contents for every requested file.",
+            load_prompt("write"),
             "",
-            "Return ONLY the following format:",
+            "Required format:",
             "",
         ]
 

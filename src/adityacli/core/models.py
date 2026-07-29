@@ -135,5 +135,5 @@ class ToolResult:
     """
 
     prompt: str
-
     metadata: ToolMetadata = field(default_factory=ToolMetadata)
+    requires_llm: bool = True

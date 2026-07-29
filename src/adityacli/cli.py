@@ -1,6 +1,11 @@
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
+from pathlib import Path
+
+from rich.rule import Rule
+from rich.syntax import Syntax
+
 from adityacli.constants import APP_NAME, APP_VERSION, PROMPT
 from adityacli.core.models import ChatResponse, OverwriteRequest
 from adityacli.core.runtime import Runtime
@@ -38,6 +43,26 @@ class CLI:
                 continue
 
             try:
+                if user_input.startswith("/write") and "\n" not in user_input:
+                    description = Prompt.ask(
+                        "What would you like to generate?"
+                    ).strip()
+
+                    if description:
+                        user_input = (
+                            f"{user_input}\n{description}"
+                        )
+
+                if user_input.startswith("/edit") and "\n" not in user_input:
+                    instruction = Prompt.ask(
+                        "What would you like to change?"
+                    ).strip()
+
+                    if instruction:
+                        user_input = (
+                            f"{user_input}\n{instruction}"
+                        )
+
                 result = self._runtime.chat(user_input)
 
                 if isinstance(result, ChatResponse):
@@ -49,15 +74,61 @@ class CLI:
                 if isinstance(result, OverwriteRequest):
                     self._console.print()
 
-                    self._console.print(
-                        "[bold yellow]Generated files:[/]"
-                    )
+                    existing_files = [
+                        path
+                        for path in result.files
+                        if Path(path).exists()
+                    ]
 
-                    for path in sorted(result.files):
-                        self._console.print(f"  • {path}")
+                    is_overwrite = bool(existing_files)
+
+                    for path, content in result.files.items():
+                        suffix = Path(path).suffix.lower()
+
+                        lexer = {
+                            ".py": "python",
+                            ".md": "markdown",
+                            ".json": "json",
+                            ".toml": "toml",
+                            ".yaml": "yaml",
+                            ".yml": "yaml",
+                            ".html": "html",
+                            ".css": "css",
+                            ".js": "javascript",
+                            ".ts": "typescript",
+                        }.get(suffix, "text")
+
+                        title = (
+                            "Generated"
+                            if user_input.startswith("/write")
+                            else "Preview"
+                        )
+
+                        self._console.print(
+                            Rule(f" {title}: {path} ")
+)
+
+                        self._console.print(
+                            Syntax(
+                                content,
+                                lexer=lexer,
+                                line_numbers=True,
+                                word_wrap=False,
+                            )
+                        )
+
+                        self._console.print()
+
+                    if user_input.startswith("/write"):
+                        if is_overwrite:
+                            message = "Overwrite existing file(s)?"
+                        else:
+                            message = "Write new file(s)?"
+                    else:
+                        message = "Apply these changes?"
 
                     overwrite = Confirm.ask(
-                        "Write these files?",
+                        message,
                         default=False,
                     )
 

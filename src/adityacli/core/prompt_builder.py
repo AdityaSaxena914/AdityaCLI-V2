@@ -1,29 +1,25 @@
 from __future__ import annotations
 
-from adityacli.core.models import Message, ToolResult
+from adityacli.core.models import Message, Role, ToolResult
 
 
 class PromptBuilder:
-    """
-    Builds the prompt that will be sent to the LLM.
-
-    Runtime owns orchestration.
-    PromptBuilder owns prompt composition.
-    """
+    """Build the temporary message list sent to the LLM."""
 
     def build(
         self,
         *,
         messages: list[Message],
         tool_result: ToolResult | None,
-        user_input: str,
-    ) -> str:
-        sections: list[str] = []
+    ) -> list[Message]:
+        prompt = list(messages)
 
         if tool_result is not None:
-            sections.append(tool_result.prompt)
+            prompt.append(
+                Message(
+                    role=Role.USER,
+                    content=tool_result.prompt,
+                )
+            )
 
-        else:
-            sections.append(user_input)
-
-        return "\n\n".join(sections)
+        return prompt

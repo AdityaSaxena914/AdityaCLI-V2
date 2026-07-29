@@ -10,6 +10,7 @@ from adityacli.core.models import (
     ToolResult,
 )
 from adityacli.tools.base import BaseTool
+from adityacli.prompts import load_prompt
 
 
 class ReadTool(BaseTool):
@@ -46,11 +47,27 @@ class ReadTool(BaseTool):
                     [
                         f"=== FILE: {relative_path} ===",
                         content,
+                        "",
                     ]
                 )
             )
 
-        prompt = "\n\n".join(sections)
+            prompt = (
+                load_prompt("read")
+                + "\n\n"
+                + "\n".join(sections)
+            )
+
+            if command.prompt:
+                prompt += (
+                    "\n=== USER REQUEST ===\n"
+                    + command.prompt
+                )
+            else:
+                prompt += (
+                    "\n=== USER REQUEST ===\n"
+                    "Read and understand these files."
+                )
 
         return ToolResult(
             prompt=prompt,

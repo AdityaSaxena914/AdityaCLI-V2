@@ -8,6 +8,7 @@ from adityacli.core.models import (
 )
 from adityacli.exceptions import InvalidSyntaxError
 from adityacli.tools.base import BaseTool
+from adityacli.prompts import load_prompt
 
 
 class WebTool(BaseTool):
@@ -25,12 +26,17 @@ class WebTool(BaseTool):
         self,
         command: Command,
     ) -> ToolResult:
-        if len(command.arguments) != 1:
+        if not command.arguments:
             raise InvalidSyntaxError(
-                "Expected exactly one search query."
+                "Expected a search query."
             )
 
-        query = command.arguments[0]
+        query = " ".join(command.arguments).strip()
+
+        if not query:
+            raise InvalidSyntaxError(
+                "Expected a search query."
+            )
 
         if self._provider is None:
             raise RuntimeError(
@@ -58,7 +64,11 @@ class WebTool(BaseTool):
                     ]
                 )
 
-            prompt = "\n".join(sections)
+            prompt = (
+                load_prompt("web")
+                + "\n\n"
+                + "\n".join(sections)
+            )
 
         else:
             urls = []

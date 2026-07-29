@@ -59,7 +59,9 @@ class ResponseParser:
             else:
                 end = len(response)
 
-            content = response[start:end].strip()
+            content = self._strip_code_fence(
+                response[start:end]
+            )
 
             if not content:
                 raise InvalidResponseError(
@@ -86,7 +88,7 @@ class ResponseParser:
         complete updated file contents.
         """
 
-        content = response.strip()
+        content = self._strip_code_fence(response)
 
         if not content:
             raise InvalidResponseError(
@@ -94,3 +96,24 @@ class ResponseParser:
             )
 
         return content
+
+    @staticmethod
+    def _strip_code_fence(content: str) -> str:
+        """
+        Remove a single outer Markdown code fence if present.
+        """
+
+        content = content.strip()
+
+        if not content.startswith("```"):
+            return content
+
+        lines = content.splitlines()
+
+        if len(lines) < 2:
+            return content
+
+        if not lines[-1].strip().startswith("```"):
+            return content
+
+        return "\n".join(lines[1:-1]).strip()

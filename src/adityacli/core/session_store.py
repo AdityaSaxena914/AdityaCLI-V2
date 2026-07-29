@@ -155,26 +155,87 @@ class SessionStore:
         path: str,
         content: str,
     ) -> None:
-        ...
+        """
+        Store or update a cached file in session memory.
+        """
+
+        memory = self._read_json(self._memory)
+
+        files = memory.setdefault("files", {})
+
+        now = datetime.now(UTC).isoformat()
+
+        record = files.get(path)
+
+        if record is None:
+            files[path] = {
+                "content": content,
+                "sha256": self._sha256(content),
+                "last_access": now,
+                "access_count": 1,
+            }
+        else:
+            record["content"] = content
+            record["sha256"] = self._sha256(content)
+            record["last_access"] = now
+            record["access_count"] += 1
+
+        self._write_json(
+            self._memory,
+            memory,
+        )
+
+        index = self._read_json(self._index)
+        index["cached_files"] = len(files)
+
+        self._write_json(
+            self._index,
+            index,
+        )
+
 
     def get_cached_file(
         self,
         path: str,
     ) -> str | None:
-            ...
+        """
+        Return cached file contents if available.
+        """
+
+        memory = self._read_json(self._memory)
+
+        record = memory["files"].get(path)
+
+        if record is None:
+            return None
+
+        return record["content"]
+    
 
     def has_cached_file(
         self,
         path: str,
     ) -> bool:
-        ...
+        """
+        Check whether a file exists in session memory.
+        """
+
+        memory = self._read_json(self._memory)
+
+        return path in memory["files"]
 
 
     def cached_files(
         self,
     ) -> dict[str, Any]:
-        ...
+        """
+        Return every cached file.
+        """
 
+        memory = self._read_json(self._memory)
+
+        return memory["files"]
+    
 
     def _increment_message_count(self) -> None:
         index = self._read_json(self._index)
@@ -209,3 +270,14 @@ class SessionStore:
     ) -> None:
         self._increment_message_count()
         self._increment_tokens(message.content)
+
+
+    @staticmethod
+    def _sha256(
+        content: str,
+    ) -> str:
+        import hashlib
+
+        return hashlib.sha256(
+            content.encode("utf-8")
+        ).hexdigest()

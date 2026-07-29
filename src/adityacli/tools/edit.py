@@ -14,6 +14,7 @@ from adityacli.exceptions import (
     InvalidPathError,
 )
 from adityacli.tools.base import BaseTool
+from adityacli.prompts import load_prompt
 
 
 class EditTool(BaseTool):
@@ -55,12 +56,13 @@ class EditTool(BaseTool):
         )
 
         prompt = (
-            "Modify the following file according to the user's request.\n\n"
-            "Return ONLY the complete updated file contents.\n\n"
-            f"{FILE_HEADER.format(path=relative_path)}\n\n"
-            f"{content}\n\n"
-            "User Request:\n"
-            f"{command.prompt}"
+            load_prompt("edit")
+            + "\n\n"
+            + FILE_HEADER.format(path=relative_path)
+            + "\n"
+            + content
+            + "\n\n=== USER REQUEST ===\n"
+            + command.prompt
         )
 
         return ToolResult(

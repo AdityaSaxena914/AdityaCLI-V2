@@ -69,4 +69,5 @@ class SearchTool(BaseTool):
                     "match_count": len(matches),
                 },
             ),
+            requires_llm=False,
         )

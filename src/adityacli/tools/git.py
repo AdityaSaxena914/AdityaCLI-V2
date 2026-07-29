@@ -62,4 +62,5 @@ class GitTool(BaseTool):
                     "return_code": result.returncode,
                 },
             ),
+            requires_llm=False,
         )

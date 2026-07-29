@@ -64,29 +64,27 @@ class Runtime:
         tool_result = None
 
         if command is None:
-            prompt = text
+            self._session.add_user(text)
         else:
             tool_result = self._registry.execute(command)
-            prompt = tool_result.prompt
+            
+            if not tool_result.requires_llm:
+                return ChatResponse(tool_result.prompt)
 
-        if tool_result is not None:
             for cached_file in tool_result.metadata.files_read:
                 self._store.cache_file(
                     path=cached_file.path,
                     content=cached_file.content,
                 )
-        
-        prompt = self._prompt_builder.build(
+
+            self._session.add_user(text)
+
+        messages = self._prompt_builder.build(
             messages=self._session.messages,
             tool_result=tool_result,
-            user_input=text,
         )
 
-        self._session.add_user(prompt)
-
-        response = self._client.generate(
-            self._session.messages,
-        )
+        response = self._client.generate(messages)
 
         self._session.add_assistant(response)
 
