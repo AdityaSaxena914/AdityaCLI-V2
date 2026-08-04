@@ -10,6 +10,7 @@ from adityacli.core.models import (
 )
 from adityacli.core.token_counter import CharacterTokenCounter
 from adityacli.exceptions import FileTooLargeError
+from adityacli.core.workspace_guard import WorkspaceGuard
 from adityacli.tools.base import BaseTool
 from adityacli.prompts import load_prompt
 
@@ -24,10 +25,12 @@ class ReadTool(BaseTool):
 
     def __init__(self, config: AppConfig) -> None:
         self._config = config
-        self._workspace = config.workspace.root.resolve()
+        self._guard = WorkspaceGuard(config)
+
         self._token_counter = CharacterTokenCounter()
+
         self._max_tokens = (
-            self._config.workspace.max_file_size
+            config.workspace.max_file_size
             // CharacterTokenCounter.CHARS_PER_TOKEN
         )
 
@@ -36,9 +39,13 @@ class ReadTool(BaseTool):
         files_read: list[CachedFile] = []
 
         for relative_path in command.arguments:
-            path = self._workspace / relative_path
+            path = self._guard.existing_file(
+                relative_path
+            )
 
-            content = path.read_text(encoding="utf-8")
+            content = path.read_text(
+                encoding=self._config.workspace.encoding,
+            )
             estimated_tokens = self._token_counter.count_text(content)
 
             if estimated_tokens > self._max_tokens:

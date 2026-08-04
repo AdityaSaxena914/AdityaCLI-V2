@@ -8,6 +8,7 @@ from adityacli.core.models import (
 from adityacli.exceptions import InvalidPathError
 from adityacli.tools.base import BaseTool
 from adityacli.prompts import load_prompt
+from adityacli.core.workspace_guard import WorkspaceGuard
 
 
 class WriteTool(BaseTool):
@@ -15,7 +16,7 @@ class WriteTool(BaseTool):
 
     def __init__(self, config: AppConfig) -> None:
         self._config = config
-        self._workspace = config.workspace.root.resolve()
+        self._guard = WorkspaceGuard(config)
 
     def execute(self, command: Command) -> ToolResult:
         if not command.arguments:
@@ -26,13 +27,7 @@ class WriteTool(BaseTool):
         paths: list[str] = []
 
         for relative_path in command.arguments:
-            path = (self._workspace / relative_path).resolve()
-
-            if not path.is_relative_to(self._workspace):
-                raise InvalidPathError(
-                    f"Invalid path: {relative_path}"
-                )
-
+            self._guard.new_file(relative_path)
             paths.append(relative_path)
 
         sections = [

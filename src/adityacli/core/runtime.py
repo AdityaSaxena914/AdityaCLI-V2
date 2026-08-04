@@ -79,6 +79,7 @@ class Runtime:
                 self._session.add_user(text)
                 self._session.add_assistant(tool_result.prompt)
 
+                self._store.flush_memory()
                 return ChatResponse(tool_result.prompt)
 
             for cached_file in tool_result.metadata.files_read:
@@ -103,6 +104,7 @@ class Runtime:
         self._session.add_assistant(response)
 
         if command is None:
+            self._store.flush_memory()
             return ChatResponse(response)
 
         if command.tool is Tool.WRITE:
@@ -111,18 +113,24 @@ class Runtime:
                 paths=command.arguments,
             )
 
-            return OverwriteRequest(files)
+            self._store.flush_memory()
 
+            return OverwriteRequest(files)
+        
         if command.tool is Tool.EDIT:
             content = self._response_parser.parse_edit_response(
                 response,
             )
+
+            self._store.flush_memory()
 
             return OverwriteRequest(
                 {
                     command.arguments[0]: content,
                 }
             )
+
+        self._store.flush_memory()
 
         return ChatResponse(response)
 

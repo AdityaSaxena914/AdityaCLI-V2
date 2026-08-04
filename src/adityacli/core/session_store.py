@@ -24,6 +24,7 @@ class SessionStore:
         self._memory = self._root / "memory.json"
         self._cache = self._root / "cache"
         self._token_counter = CharacterTokenCounter()
+        self._memory_cache: dict[str, Any] | None = None
 
     @property
     def exists(self) -> bool:
@@ -67,11 +68,13 @@ class SessionStore:
         )
 
 
+        self._memory_cache = {
+            "files": {},
+        }
+
         self._write_json(
             self._memory,
-            {
-                "files": [],
-            },
+            self._memory_cache,
         )
 
 
@@ -135,6 +138,8 @@ class SessionStore:
         model: str,
         context_window: int,
     ) -> None:
+        self._memory_cache = None
+
         if self._root.exists():
             shutil.rmtree(self._root)
 
@@ -202,7 +207,7 @@ class SessionStore:
         Store or update a cached file in session memory.
         """
 
-        memory = self._read_json(self._memory)
+        memory = self._memory_data()
 
         files = memory.setdefault("files", {})
 
@@ -223,10 +228,6 @@ class SessionStore:
             record["last_access"] = now
             record["access_count"] += 1
 
-        self._write_json(
-            self._memory,
-            memory,
-        )
 
         index = self._read_json(self._index)
         index["cached_files"] = len(files)
@@ -245,7 +246,7 @@ class SessionStore:
         Return cached file contents if available.
         """
 
-        memory = self._read_json(self._memory)
+        memory = self._memory_data()
 
         record = memory["files"].get(path)
 
@@ -263,7 +264,7 @@ class SessionStore:
         Check whether a file exists in session memory.
         """
 
-        memory = self._read_json(self._memory)
+        memory = self._memory_data()
 
         return path in memory["files"]
 
@@ -275,7 +276,7 @@ class SessionStore:
         Return every cached file.
         """
 
-        memory = self._read_json(self._memory)
+        memory = self._memory_data()
 
         return memory["files"]
 
@@ -308,3 +309,30 @@ class SessionStore:
         return hashlib.sha256(
             content.encode("utf-8")
         ).hexdigest()
+
+
+    def _memory_data(self) -> dict[str, Any]:
+        """
+        Lazily load session memory once.
+        """
+
+        if self._memory_cache is None:
+            self._memory_cache = self._read_json(
+                self._memory
+            )
+
+        return self._memory_cache
+
+
+    def flush_memory(self) -> None:
+        """
+        Persist the in-memory cache.
+        """
+
+        if self._memory_cache is None:
+            return
+
+        self._write_json(
+            self._memory,
+            self._memory_cache,
+        )

@@ -1,9 +1,8 @@
 from pathlib import Path
-
+from adityacli.core.workspace_guard import WorkspaceGuard
 from adityacli.config import AppConfig
 from adityacli.exceptions import (
     FileAlreadyExistsError,
-    InvalidPathError,
     WriteError,
 )
 
@@ -13,7 +12,7 @@ class FileManager:
 
     def __init__(self, config: AppConfig) -> None:
         self._config = config
-        self._workspace = config.workspace.root.resolve()
+        self._guard = WorkspaceGuard(config)
 
     def write(
         self,
@@ -25,7 +24,7 @@ class FileManager:
         Write a single text file.
         """
 
-        path = self._resolve(relative_path)
+        path = self._guard.new_file(relative_path)
 
         if path.exists() and not overwrite:
             raise FileAlreadyExistsError(
@@ -63,7 +62,7 @@ class FileManager:
         resolved: list[tuple[Path, str, str]] = []
 
         for relative_path, content in files.items():
-            path = self._resolve(relative_path)
+            path = self._guard.new_file(relative_path)
 
             if path.exists() and not overwrite:
                 raise FileAlreadyExistsError(
@@ -93,17 +92,3 @@ class FileManager:
                 raise WriteError(
                     f"Failed to write '{relative_path}'."
                 ) from exc
-
-    def _resolve(self, relative_path: str) -> Path:
-        """
-        Resolve and validate a workspace-relative path.
-        """
-
-        path = (self._workspace / relative_path).resolve()
-
-        if not path.is_relative_to(self._workspace):
-            raise InvalidPathError(
-                f"Path is outside the workspace: {relative_path}"
-            )
-
-        return path

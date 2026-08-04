@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from adityacli.config import AppConfig
-from adityacli.constants import DEFAULT_ENCODING, FILE_HEADER
+from adityacli.constants import FILE_HEADER
 from adityacli.core.models import (
     CachedFile,
     Command,
@@ -16,12 +16,14 @@ from adityacli.exceptions import (
 from adityacli.tools.base import BaseTool
 from adityacli.prompts import load_prompt
 from adityacli.core.token_counter import CharacterTokenCounter
+from adityacli.core.workspace_guard import WorkspaceGuard
 
 
 class EditTool(BaseTool):
     """Generate a complete replacement for an existing file."""
     def __init__(self, config: AppConfig) -> None:
         self._config = config
+        self._guard = WorkspaceGuard(config)
         self._token_counter = CharacterTokenCounter()
         self._max_tokens = (
             self._config.workspace.max_file_size
@@ -34,26 +36,14 @@ class EditTool(BaseTool):
                 "Expected exactly one file path."
             )
 
-        workspace = self._config.workspace.root.resolve()
         relative_path = command.arguments[0]
 
-        path = (workspace / relative_path).resolve()
-
-        if not path.is_relative_to(workspace):
-            raise InvalidPathError(
-                "Path is outside the workspace."
-            )
-
-        if not path.exists():
-            raise FileNotFoundError(relative_path)
-
-        if not path.is_file():
-            raise InvalidPathError(
-                f"{relative_path} is not a file."
-            )
+        path = self._guard.existing_file(
+            relative_path
+        )
 
         content = path.read_text(
-            encoding=DEFAULT_ENCODING,
+            encoding=self._config.workspace.encoding,
         )
 
         estimated_tokens = self._token_counter.count_text(content)
