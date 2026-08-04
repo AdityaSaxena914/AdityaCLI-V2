@@ -52,11 +52,11 @@ class Parser:
     ) -> None:
         match command.tool:
             case Tool.WRITE:
-                if not command.arguments:
+                if len(command.arguments) != 1:
                     raise InvalidPathError(
-                        "At least one file path is required."
+                        "Exactly one file path is currently supported."
                     )
-
+                
             case Tool.EDIT:
                 if len(command.arguments) != 1:
                     raise InvalidPathError(

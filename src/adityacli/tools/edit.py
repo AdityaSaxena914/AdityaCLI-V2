@@ -15,12 +15,18 @@ from adityacli.exceptions import (
 )
 from adityacli.tools.base import BaseTool
 from adityacli.prompts import load_prompt
+from adityacli.core.token_counter import CharacterTokenCounter
 
 
 class EditTool(BaseTool):
     """Generate a complete replacement for an existing file."""
     def __init__(self, config: AppConfig) -> None:
         self._config = config
+        self._token_counter = CharacterTokenCounter()
+        self._max_tokens = (
+            self._config.workspace.max_file_size
+            // CharacterTokenCounter.CHARS_PER_TOKEN
+        )
 
     def execute(self, command: Command) -> ToolResult:
         if len(command.arguments) != 1:
@@ -46,14 +52,16 @@ class EditTool(BaseTool):
                 f"{relative_path} is not a file."
             )
 
-        if path.stat().st_size > self._config.workspace.max_file_size:
-            raise FileTooLargeError(
-                f"{relative_path} exceeds the maximum file size."
-            )
-
         content = path.read_text(
             encoding=DEFAULT_ENCODING,
         )
+
+        estimated_tokens = self._token_counter.count_text(content)
+
+        if estimated_tokens > self._max_tokens:
+            raise FileTooLargeError(
+                f"{relative_path} exceeds the maximum token limit."
+            )
 
         prompt = (
             load_prompt("edit")

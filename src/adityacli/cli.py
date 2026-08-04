@@ -47,6 +47,17 @@ class CLI:
                 break
 
             if user_input == "/clear":
+                confirmed = Confirm.ask(
+                    "Clear the current session?",
+                    default=False,
+                )
+
+                if not confirmed:
+                    self._console.print(
+                        "[yellow]Session not cleared.[/]\n"
+                    )
+                    continue
+
                 self._runtime.clear()
 
                 self._console.clear(home=True)
@@ -61,7 +72,7 @@ class CLI:
                         if self._runtime.last_response
                         else "AUTO"
                     ),
-                    context_window=65536,
+                    context_window=self._runtime.config.lmstudio.context_window,
                     continued=False,
                 )
 
@@ -83,36 +94,13 @@ class CLI:
 
 
             try:
-                command = self._runtime.parser.parse(user_input)
-                
-                if command is not None:
-                    self._runtime.parser.validate(command)
+                followup = self._runtime.needs_followup(user_input)
 
+                if followup is not None:
+                    response = Prompt.ask(followup).strip()
 
-                if (
-                    command is not None
-                    and command.tool.name == "WRITE"
-                    and "\n" not in user_input
-                ):
-                    description = Prompt.ask(
-                        "What would you like to generate?"
-                    ).strip()
-
-                    if description:
-                        user_input += "\n" + description
-
-
-                if (
-                    command is not None
-                    and command.tool.name == "EDIT"
-                    and "\n" not in user_input
-                ):
-                    instruction = Prompt.ask(
-                        "What would you like to change?"
-                    ).strip()
-
-                    if instruction:
-                        user_input += "\n" + instruction
+                    if response:
+                        user_input += "\n" + response
 
                 result = self._runtime.chat(user_input)
 

@@ -4,9 +4,11 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
+import os
+import tempfile
 from adityacli.core.models import Message
 from adityacli.core.token_counter import CharacterTokenCounter
+import shutil
 
 class SessionStore:
     """
@@ -20,6 +22,7 @@ class SessionStore:
         self._index = self._root / "index.json"
         self._chat = self._root / "chat.jsonl"
         self._memory = self._root / "memory.json"
+        self._cache = self._root / "cache"
         self._token_counter = CharacterTokenCounter()
 
     @property
@@ -49,6 +52,11 @@ class SessionStore:
             },
         )
 
+        self._chat.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
         self._write_json(
             self._index,
             {
@@ -58,17 +66,20 @@ class SessionStore:
             },
         )
 
+
         self._write_json(
             self._memory,
             {
-                "files": {},
+                "files": [],
             },
         )
 
-        self._chat.write_text(
-            "",
+
+        with self._chat.open(
+            "w",
             encoding="utf-8",
-        )
+        ):
+            pass
 
     def load_messages(self) -> list[Message]:
         """
@@ -125,8 +136,7 @@ class SessionStore:
         context_window: int,
     ) -> None:
         if self._root.exists():
-            for path in self._root.iterdir():
-                path.unlink()
+            shutil.rmtree(self._root)
 
         self.create(
             model=model,
@@ -148,10 +158,40 @@ class SessionStore:
         path: Path,
         data: dict[str, Any],
     ) -> None:
-        path.write_text(
-            json.dumps(data, indent=4),
-            encoding="utf-8",
+        path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
         )
+
+        fd, temp_name = tempfile.mkstemp(
+            dir=path.parent,
+            prefix=path.name,
+            suffix=".tmp",
+        )
+
+        try:
+            with os.fdopen(
+                fd,
+                "w",
+                encoding="utf-8",
+            ) as file:
+                json.dump(
+                    data,
+                    file,
+                    indent=4,
+                )
+                file.flush()
+                os.fsync(file.fileno())
+
+            os.replace(
+                temp_name,
+                path,
+            )
+
+        finally:
+            if os.path.exists(temp_name):
+                os.remove(temp_name)
+
 
     def cache_file(
         self,
@@ -238,42 +278,26 @@ class SessionStore:
         memory = self._read_json(self._memory)
 
         return memory["files"]
+
     
-
-    def _increment_message_count(self) -> None:
-        index = self._read_json(self._index)
-
-        index["message_count"] += 1
-
-        self._write_json(
-            self._index,
-            index,
-        )
-
-
-    def _increment_tokens(
-        self,
-        text: str,
-    ) -> None:
-        index = self._read_json(self._index)
-
-        index["estimated_tokens"] += (
-            self._token_counter.count_text(text)
-        )
-
-        self._write_json(
-            self._index,
-            index,
-        )
-
-
     def _append_statistics(
         self,
         message: Message,
     ) -> None:
-        self._increment_message_count()
-        self._increment_tokens(message.content)
+        index = self._read_json(self._index)
 
+        index["message_count"] += 1
+
+        index["estimated_tokens"] += (
+            self._token_counter.count_text(
+                message.content
+            )
+        )
+
+        self._write_json(
+            self._index,
+            index,
+        )
 
     @staticmethod
     def _sha256(

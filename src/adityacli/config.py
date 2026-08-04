@@ -9,6 +9,9 @@ class LMStudioConfig:
     base_url: str = "http://127.0.0.1:1234/v1"
     api_key: str = "lm-studio"
     model: str = ""
+
+    context_window: int = 65536
+
     timeout: int = 300
 
 

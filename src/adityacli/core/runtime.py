@@ -52,7 +52,7 @@ class Runtime:
         else:
             self._store.clear(
                 model=config.lmstudio.model,
-                context_window=65536,
+                context_window=config.lmstudio.context_window,
             )
 
             self._session = Session(self._store)
@@ -66,6 +66,8 @@ class Runtime:
         text: str,
     ) -> RuntimeResult:
         command = self._parser.parse(text)
+        if command is not None:
+            self._parser.validate(command)
         tool_result = None
 
         if command is None:
@@ -74,6 +76,9 @@ class Runtime:
             tool_result = self._registry.execute(command)
             
             if not tool_result.requires_llm:
+                self._session.add_user(text)
+                self._session.add_assistant(tool_result.prompt)
+
                 return ChatResponse(tool_result.prompt)
 
             for cached_file in tool_result.metadata.files_read:
@@ -145,7 +150,7 @@ class Runtime:
 
         self._session.clear(
             model=self._config.lmstudio.model,
-            context_window=65536,
+            context_window=self._config.lmstudio.context_window,
         )
 
         for prompt in system_messages:
@@ -173,3 +178,21 @@ class Runtime:
     @property
     def continued_session(self) -> bool:
         return self._continued_session
+
+
+    def needs_followup(
+        self,
+        text: str,
+    ) -> str | None:
+        command = self._parser.parse(text)
+
+        if command is None:
+            return None
+
+        if command.tool is Tool.WRITE and "\n" not in text:
+            return "What would you like to generate?"
+
+        if command.tool is Tool.EDIT and "\n" not in text:
+            return "What would you like to change?"
+
+        return None

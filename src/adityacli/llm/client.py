@@ -2,7 +2,10 @@ from openai import OpenAI
 from openai import OpenAIError
 from openai.types.chat import ChatCompletionMessageParam
 from adityacli.config import LMStudioConfig
-from adityacli.exceptions import ConnectionError, LLMError
+from adityacli.exceptions import (
+    LLMConnectionError,
+    LLMError,
+)
 from adityacli.core.models import (
     LLMResponse,
     Message,
@@ -50,7 +53,7 @@ class LLMClient:
 
             elapsed = perf_counter() - start
         except OpenAIError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise LLMConnectionError(str(exc)) from exc
         except Exception as exc:
             raise LLMError(str(exc)) from exc
 
@@ -70,3 +73,25 @@ class LLMClient:
             ),
             elapsed_seconds=elapsed,
         )
+
+    def health_check(self) -> None:
+        """
+        Verify that LM Studio is reachable and the configured model exists.
+        """
+
+        try:
+            models = self._client.models.list()
+        except OpenAIError as exc:
+            raise LLMConnectionError(
+                f"Unable to connect to LM Studio: {exc}"
+            ) from exc
+
+        available = {
+            model.id
+            for model in models.data
+        }
+
+        if self._model not in available:
+            raise LLMError(
+                f"Model '{self._model}' is not loaded in LM Studio."
+            )

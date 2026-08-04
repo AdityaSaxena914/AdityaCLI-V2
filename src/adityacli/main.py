@@ -39,6 +39,7 @@ def main() -> None:
     )
 
     client = LLMClient(config.lmstudio)
+    client.health_check()
     search_provider = DuckDuckGoProvider()
 
     registry = ToolRegistry(

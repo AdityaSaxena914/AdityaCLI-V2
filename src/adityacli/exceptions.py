@@ -62,7 +62,7 @@ class LLMError(AdityaCLIError):
     """LLM error."""
 
 
-class ConnectionError(LLMError):
+class LLMConnectionError(LLMError):
     """Connection failed."""
 
 

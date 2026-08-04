@@ -48,14 +48,6 @@ class WriteTool(BaseTool):
                 ]
             )
 
-        if command.prompt:
-            sections.extend(
-                [
-                    "User Request:",
-                    command.prompt,
-                ]
-            )
-
         return ToolResult(
             prompt="\n".join(sections),
             metadata=ToolMetadata(

@@ -46,6 +46,7 @@ class WebTool(BaseTool):
 
         if results:
             sections = [
+                "===== BEGIN UNTRUSTED WEB DATA =====",
                 f'Web search results for "{query}":',
                 "",
             ]
@@ -63,6 +64,8 @@ class WebTool(BaseTool):
                         "",
                     ]
                 )
+
+            sections.append("===== END UNTRUSTED WEB DATA =====")
 
             prompt = (
                 load_prompt("web")

@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import shutil
+import subprocess
+from pathlib import Path
+
 from adityacli.config import AppConfig
 from adityacli.core.models import (
     Command,
     ToolMetadata,
     ToolResult,
 )
-from adityacli.exceptions import InvalidSyntaxError
+from adityacli.exceptions import (
+    InvalidSyntaxError,
+    ToolExecutionError,
+)
 from adityacli.tools.base import BaseTool
 
 
@@ -24,6 +31,8 @@ _IGNORE_SUFFIXES = {
     ".pyc",
     ".pyo",
 }
+
+_MAX_RESULTS = 50
 
 
 class SearchTool(BaseTool):
@@ -45,15 +54,59 @@ class SearchTool(BaseTool):
             )
 
         query = command.arguments[0]
-        query_lower = query.lower()
 
+        filename_matches = self._filename_search(query)
+
+        if filename_matches:
+            matches = filename_matches
+        elif shutil.which("rg") is not None:
+            matches = self._ripgrep(query)
+        else:
+            matches = self._python_search(query)
+
+        actual_match_count = len(matches)
+
+        if actual_match_count > _MAX_RESULTS:
+            truncated = actual_match_count - _MAX_RESULTS
+            matches = matches[:_MAX_RESULTS]
+        
+            matches.append("")
+            matches.append(
+                f"... {truncated} additional matches omitted."
+            )
+
+        if matches:
+            prompt = (
+                f'Search results for "{query}":\n\n'
+                + "\n".join(matches)
+            )
+        else:
+            prompt = (
+                f'No matches found for "{query}".'
+            )
+
+        return ToolResult(
+            prompt=prompt,
+            metadata=ToolMetadata(
+                search_results=tuple(matches),
+                extra={
+                    "query": query,
+                    "match_count": actual_match_count,
+                },
+            ),
+            requires_llm=False,
+        )
+
+
+    def _filename_search(
+        self,
+        query: str,
+    ) -> list[str]:
         workspace = self._config.workspace.root.resolve()
 
-        # ------------------------------------------------------------------
-        # Filename search
-        # ------------------------------------------------------------------
+        query_lower = query.lower()
 
-        filename_matches: list[str] = []
+        matches: list[str] = []
 
         for path in workspace.rglob("*"):
             if any(
@@ -72,28 +125,88 @@ class SearchTool(BaseTool):
                 query_lower == stem
                 or query_lower == name
             ):
-                filename_matches.append(
+                matches.append(
                     str(path.relative_to(workspace))
                 )
 
-        if filename_matches:
-            return ToolResult(
-                prompt="\n".join(filename_matches),
-                metadata=ToolMetadata(
-                    search_results=tuple(filename_matches),
-                    extra={
-                        "query": query,
-                        "match_count": len(filename_matches),
-                    },
-                ),
-                requires_llm=False,
+        return matches
+
+
+    def _ripgrep(
+        self,
+        query: str,
+    ) -> list[str]:
+        """
+        Search using ripgrep.
+        """
+
+        workspace = self._config.workspace.root.resolve()
+
+        command = [
+            "rg",
+            "--line-number",
+            "--with-filename",
+            "--smart-case",
+            "--hidden",
+            "--color=never",
+            "--max-count",
+            str(_MAX_RESULTS + 1),
+
+            "--glob", "!*.pyc",
+            "--glob", "!*.pyo",
+
+            query,
+            str(workspace),
+        ]
+
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as exc:
+            raise ToolExecutionError(
+                f"Failed to execute ripgrep: {exc}"
+            ) from exc
+
+        if result.returncode not in (0, 1):
+            raise ToolExecutionError(
+                result.stderr.strip()
             )
 
-        # ------------------------------------------------------------------
-        # Content search
-        # ------------------------------------------------------------------
-
         matches: list[str] = []
+
+        for line in result.stdout.splitlines():
+            line = line.strip()
+
+            if not line:
+                continue
+
+            prefix = str(workspace) + "/"
+
+            if line.startswith(prefix):
+                line = line[len(prefix):]
+
+            matches.append(line)
+
+        return matches
+
+
+    def _python_search(
+        self,
+        query: str,
+    ) -> list[str]:
+        """
+        Fallback search when ripgrep is unavailable.
+        """
+
+        workspace = self._config.workspace.root.resolve()
+        query_lower = query.lower()
+
+        filename_matches: list[str] = []
+        content_matches: list[str] = []
 
         for path in workspace.rglob("*"):
             if any(
@@ -108,6 +221,18 @@ class SearchTool(BaseTool):
             if path.suffix in _IGNORE_SUFFIXES:
                 continue
 
+            stem = path.stem.lower()
+            name = path.name.lower()
+
+            if (
+                query_lower == stem
+                or query_lower == name
+            ):
+                filename_matches.append(
+                    str(path.relative_to(workspace))
+                )
+                continue
+
             try:
                 content = path.read_text(
                     encoding=self._config.workspace.encoding,
@@ -120,28 +245,11 @@ class SearchTool(BaseTool):
                 start=1,
             ):
                 if query_lower in line.lower():
-                    matches.append(
+                    content_matches.append(
                         f"{path.relative_to(workspace)}:{line_number}: {line}"
                     )
 
-        if matches:
-            prompt = (
-                f'Search results for "{query}":\n\n'
-                + "\n".join(matches)
-            )
-        else:
-            prompt = (
-                f'No matches found for "{query}".'
-            )
+        if filename_matches:
+            return filename_matches
 
-        return ToolResult(
-            prompt=prompt,
-            metadata=ToolMetadata(
-                search_results=tuple(matches),
-                extra={
-                    "query": query,
-                    "match_count": len(matches),
-                },
-            ),
-            requires_llm=False,
-        )
+        return content_matches
