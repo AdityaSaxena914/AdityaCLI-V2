@@ -16,6 +16,7 @@ from adityacli.tools.registry import ToolRegistry
 from adityacli.core.prompt_builder import PromptBuilder
 from adityacli.services.command_service import CommandService
 from adityacli.services.llm_service import LLMService
+from adityacli.services.overwrite_service import OverwriteService
 
 
 class Runtime:
@@ -53,6 +54,12 @@ class Runtime:
 
         self._continued_session = (
             continue_session and self._store.exists
+        )
+
+        self._overwrite_service = OverwriteService(
+            parser=self._response_parser,
+            file_manager=self._file_manager,
+            store=self._store,
         )
 
         if self._continued_session:
@@ -112,28 +119,14 @@ class Runtime:
             self._store.flush_memory()
             return ChatResponse(response)
 
-        if command.tool is Tool.WRITE:
-            files = self._response_parser.parse_write_response(
-                response=response,
-                paths=command.arguments,
-            )
+        request = self._overwrite_service.create_request(
+            command,
+            response,
+        )
 
+        if request is not None:
             self._store.flush_memory()
-
-            return OverwriteRequest(files)
-        
-        if command.tool is Tool.EDIT:
-            content = self._response_parser.parse_edit_response(
-                response,
-            )
-
-            self._store.flush_memory()
-
-            return OverwriteRequest(
-                {
-                    command.arguments[0]: content,
-                }
-            )
+            return request
 
         self._store.flush_memory()
 
@@ -143,16 +136,7 @@ class Runtime:
         self,
         request: OverwriteRequest,
     ) -> None:
-        self._file_manager.write_many(
-            request.files,
-            overwrite=True,
-        )
-
-        for path, content in request.files.items():
-            self._store.cache_file(
-                path=path,
-                content=content,
-            )
+        self._overwrite_service.confirm(request)
 
     def clear(self) -> None:
         system_messages = [
