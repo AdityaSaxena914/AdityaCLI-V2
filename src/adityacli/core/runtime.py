@@ -14,6 +14,7 @@ from adityacli.core.session_store import SessionStore
 from adityacli.llm.client import LLMClient
 from adityacli.tools.registry import ToolRegistry
 from adityacli.core.prompt_builder import PromptBuilder
+from adityacli.services.command_service import CommandService
 
 
 class Runtime:
@@ -29,9 +30,13 @@ class Runtime:
     ) -> None:
         self._config = config
         self._client = client
+        self._parser = Parser()
         self._registry = registry
 
-        self._parser = Parser()
+        self._command_service = CommandService(
+            parser=self._parser,
+            registry=self._registry,
+        )
         self._response_parser = ResponseParser()
         self._file_manager = FileManager(config)
 
@@ -65,15 +70,15 @@ class Runtime:
         self,
         text: str,
     ) -> RuntimeResult:
-        command = self._parser.parse(text)
-        if command is not None:
-            self._parser.validate(command)
+        
+        command = self._command_service.parse(text)
+
         tool_result = None
 
         if command is None:
             self._session.add_user(text)
         else:
-            tool_result = self._registry.execute(command)
+            tool_result = self._command_service.execute(command)
             
             if not tool_result.requires_llm:
                 self._session.add_user(text)
