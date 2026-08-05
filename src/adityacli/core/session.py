@@ -9,9 +9,9 @@ class Session:
 
     def __init__(
         self,
-        store: SessionStore | None = None,
+        store: SessionStore,
     ) -> None:
-        self._store = store
+        self._store: SessionStore = store
         self._messages: list[Message] = []
 
     @property
@@ -22,9 +22,6 @@ class Session:
         """
         Restore the persisted session.
         """
-
-        if self._store is None:
-            return
 
         self._messages = self._store.load_messages()
 
@@ -44,7 +41,23 @@ class Session:
             )
         )
 
-    def add_system(self, content: str) -> None:
+    def add_system(
+        self,
+        content: str,
+    ) -> None:
+        if self._messages:
+            if self._messages[0].role is Role.SYSTEM:
+                return
+
+            self._messages.insert(
+                0,
+                Message(
+                    role=Role.SYSTEM,
+                    content=content,
+                ),
+            )
+            return
+
         self._append(
             Message(
                 role=Role.SYSTEM,
@@ -59,14 +72,12 @@ class Session:
     ) -> None:
         self._messages.clear()
 
-        if self._store is not None:
-            self._store.clear(
-                model=model,
-                context_window=context_window,
-            )
+        self._store.clear(
+            model=model,
+            context_window=context_window,
+        )
 
     def _append(self, message: Message) -> None:
         self._messages.append(message)
 
-        if self._store is not None:
-            self._store.append_message(message)
+        self._store.append_message(message)

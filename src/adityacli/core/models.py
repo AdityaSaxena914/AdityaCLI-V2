@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import TypeAlias
 
 
 class Role(StrEnum):
@@ -79,7 +79,11 @@ class OverwriteRequest:
     files: dict[str, str]
 
 
-RuntimeResult = ChatResponse | OverwriteRequest
+
+RuntimeResult: TypeAlias = (
+    ChatResponse
+    | OverwriteRequest
+)
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +122,7 @@ class ToolMetadata:
 
     git_command: str | None = None
 
-    extra: dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(slots=True, frozen=True)
@@ -141,3 +145,11 @@ class LLMResponse:
     total_tokens: int
 
     elapsed_seconds: float
+
+
+@dataclass(slots=True)
+class ResponseStats:
+    model: str
+    elapsed_seconds: float
+    completion_tokens: int
+    speed: float

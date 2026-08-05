@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import override
 from adityacli.config import AppConfig
 from adityacli.providers.base import SearchProvider
 from adityacli.core.models import (
@@ -19,9 +20,10 @@ class WebTool(BaseTool):
         config: AppConfig,
         provider: SearchProvider | None,
     ) -> None:
-        self._config = config
-        self._provider = provider
+        self._config: AppConfig = config
+        self._provider: SearchProvider | None = provider
 
+    @override
     def execute(
         self,
         command: Command,

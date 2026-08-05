@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-
+from typing import cast
 from adityacli.config import (
     AppConfig,
     LMStudioConfig,
@@ -46,7 +46,7 @@ def test_execute_read(
     registry: ToolRegistry,
     tmp_path: Path,
 ) -> None:
-    (tmp_path / "hello.txt").write_text("hello")
+    _=(tmp_path / "hello.txt").write_text("hello")
 
     command = Command(
         tool=Tool.READ,
@@ -66,15 +66,19 @@ def test_execute_read(
     assert cached.sha256
 
 
-def test_execute_unknown_tool(registry: ToolRegistry) -> None:
+def test_execute_unknown_tool(
+    registry: ToolRegistry,
+) -> None:
     class FakeTool:
         pass
 
+    fake_tool = cast(Tool, cast(object, FakeTool()))
+
     command = Command(
-        tool=FakeTool(),  # type: ignore[arg-type]
+        tool=fake_tool,
         arguments=[],
         prompt="",
     )
 
     with pytest.raises(InvalidCommandError):
-        registry.execute(command)
+        _=registry.execute(command)

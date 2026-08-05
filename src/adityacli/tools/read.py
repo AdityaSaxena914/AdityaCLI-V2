@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from typing import override
 import hashlib
 from adityacli.config import AppConfig
 from adityacli.core.models import (
@@ -24,16 +24,16 @@ class ReadTool(BaseTool):
     """
 
     def __init__(self, config: AppConfig) -> None:
-        self._config = config
-        self._guard = WorkspaceGuard(config)
+        self._config: AppConfig = config
+        self._guard: WorkspaceGuard = WorkspaceGuard(config)
+        self._token_counter: CharacterTokenCounter = CharacterTokenCounter()
 
-        self._token_counter = CharacterTokenCounter()
-
-        self._max_tokens = (
+        self._max_tokens: int = (
             config.workspace.max_file_size
             // CharacterTokenCounter.CHARS_PER_TOKEN
         )
 
+    @override
     def execute(self, command: Command) -> ToolResult:
         sections: list[str] = []
         files_read: list[CachedFile] = []

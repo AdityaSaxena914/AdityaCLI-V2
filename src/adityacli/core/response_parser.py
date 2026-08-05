@@ -81,11 +81,4 @@ class ResponseParser:
             flags=re.MULTILINE,
         )
 
-        content = re.sub(
-            r"^[A-Za-z0-9_.-]+\s*=+\s*\n?",
-            "",
-            content,
-            flags=re.MULTILINE,
-        )
-
         return content.strip()

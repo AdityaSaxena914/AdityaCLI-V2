@@ -17,12 +17,13 @@ class LLMClient:
     """LM Studio client."""
 
     def __init__(self, config: LMStudioConfig) -> None:
-        self._client = OpenAI(
+        self._client: OpenAI = OpenAI(
             api_key=config.api_key,
             base_url=config.base_url,
             timeout=config.timeout,
         )
-        self._model = config.model
+
+        self._model: str = config.model
 
     def generate(
         self,
@@ -31,6 +32,7 @@ class LLMClient:
         """
         Generate a response from the language model.
         """
+        self.health_check()
 
         try:
             payload = cast(
@@ -91,7 +93,7 @@ class LLMClient:
             for model in models.data
         }
 
-        if self._model not in available:
+        if self._model and self._model not in available:
             raise LLMError(
                 f"Model '{self._model}' is not loaded in LM Studio."
             )

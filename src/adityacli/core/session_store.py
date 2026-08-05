@@ -3,12 +3,41 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import cast, TypedDict
 import os
 import tempfile
 from adityacli.core.models import Message
 from adityacli.core.token_counter import CharacterTokenCounter
 import shutil
+
+
+type JSONValue = (
+    None
+    | bool
+    | int
+    | float
+    | str
+    | list["JSONValue"]
+    | dict[str, "JSONValue"]
+)
+
+type JSONObject = dict[str, JSONValue]
+
+class SessionIndex(TypedDict):
+    message_count: int
+    estimated_tokens: int
+    cached_files: int
+
+class CachedFileRecord(TypedDict):
+    content: str
+    sha256: str
+    last_access: str
+    access_count: int
+
+
+class SessionMemory(TypedDict):
+    files: dict[str, CachedFileRecord]
+
 
 class SessionStore:
     """
@@ -16,15 +45,20 @@ class SessionStore:
     """
 
     def __init__(self, workspace: Path) -> None:
-        self._root = workspace / ".sessions" / "current"
+        self._root: Path = workspace / ".sessions" / "current"
 
-        self._session = self._root / "session.json"
-        self._index = self._root / "index.json"
-        self._chat = self._root / "chat.jsonl"
-        self._memory = self._root / "memory.json"
-        self._cache = self._root / "cache"
-        self._token_counter = CharacterTokenCounter()
-        self._memory_cache: dict[str, Any] | None = None
+        self._session: Path = self._root / "session.json"
+        self._index: Path = self._root / "index.json"
+        self._chat: Path = self._root / "chat.jsonl"
+        self._memory: Path = self._root / "memory.json"
+
+        self._cache: Path = self._root / "cache"
+
+        self._token_counter: CharacterTokenCounter = (
+            CharacterTokenCounter()
+        )
+
+        self._memory_cache: SessionMemory | None = None
 
     @property
     def exists(self) -> bool:
@@ -74,7 +108,10 @@ class SessionStore:
 
         self._write_json(
             self._memory,
-            self._memory_cache,
+            cast(
+                JSONObject,
+                cast(object, self._memory_cache),
+            ),
         )
 
 
@@ -102,7 +139,10 @@ class SessionStore:
             if not line.strip():
                 continue
 
-            obj = json.loads(line)
+            obj = cast(
+                dict[str, str],
+                cast(object, json.loads(line)),
+            )
 
             messages.append(
                 Message(
@@ -128,8 +168,8 @@ class SessionStore:
             "a",
             encoding="utf-8",
         ) as file:
-            file.write(json.dumps(record))
-            file.write("\n")
+            _=file.write(json.dumps(record))
+            _=file.write("\n")
 
         self._append_statistics(message)
 
@@ -151,17 +191,20 @@ class SessionStore:
 
 
     @staticmethod
-    def _read_json(path: Path) -> dict[str, Any]:
-        return json.loads(
-            path.read_text(
-                encoding="utf-8",
-            )
+    def _read_json(path: Path) -> JSONObject:
+        return cast(
+            JSONObject,
+            json.loads(
+                path.read_text(
+                    encoding="utf-8",
+                )
+            ),
         )
 
     @staticmethod
     def _write_json(
         path: Path,
-        data: dict[str, Any],
+        data: JSONObject,
     ) -> None:
         path.parent.mkdir(
             parents=True,
@@ -198,6 +241,25 @@ class SessionStore:
                 os.remove(temp_name)
 
 
+    def _read_index(self) -> SessionIndex:
+        return cast(
+            SessionIndex,
+            cast(object, self._read_json(self._index)),
+        )
+
+
+    def _write_index(
+        self,
+        index: SessionIndex,
+    ) -> None:
+        self._write_json(
+            self._index,
+            cast(
+                JSONObject,
+                cast(object, index),
+            ),
+        )
+
     def cache_file(
         self,
         path: str,
@@ -229,13 +291,10 @@ class SessionStore:
             record["access_count"] += 1
 
 
-        index = self._read_json(self._index)
+        index = self._read_index()
         index["cached_files"] = len(files)
 
-        self._write_json(
-            self._index,
-            index,
-        )
+        self._write_index(index)
 
 
     def get_cached_file(
@@ -271,7 +330,7 @@ class SessionStore:
 
     def cached_files(
         self,
-    ) -> dict[str, Any]:
+    ) -> dict[str, CachedFileRecord]:
         """
         Return every cached file.
         """
@@ -285,7 +344,7 @@ class SessionStore:
         self,
         message: Message,
     ) -> None:
-        index = self._read_json(self._index)
+        index = self._read_index()
 
         index["message_count"] += 1
 
@@ -295,10 +354,7 @@ class SessionStore:
             )
         )
 
-        self._write_json(
-            self._index,
-            index,
-        )
+        self._write_index(index)
 
     @staticmethod
     def _sha256(
@@ -311,14 +367,14 @@ class SessionStore:
         ).hexdigest()
 
 
-    def _memory_data(self) -> dict[str, Any]:
-        """
-        Lazily load session memory once.
-        """
-
+    def _memory_data(self) -> SessionMemory:
         if self._memory_cache is None:
-            self._memory_cache = self._read_json(
-                self._memory
+            self._memory_cache = cast(
+                SessionMemory,
+                cast(
+                    object,
+                    self._read_json(self._memory),
+                ),
             )
 
         return self._memory_cache
@@ -334,5 +390,8 @@ class SessionStore:
 
         self._write_json(
             self._memory,
-            self._memory_cache,
+            cast(
+                JSONObject,
+                cast(object, self._memory_cache),
+            ),
         )

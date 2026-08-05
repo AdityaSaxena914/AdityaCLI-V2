@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-from pathlib import Path
-
+from typing import override
 from adityacli.config import AppConfig
 from adityacli.core.models import (
     Command,
@@ -42,8 +41,9 @@ class SearchTool(BaseTool):
         self,
         config: AppConfig,
     ) -> None:
-        self._config = config
+        self._config: AppConfig = config
 
+    @override
     def execute(
         self,
         command: Command,

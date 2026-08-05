@@ -32,9 +32,7 @@ def print_banner(
     )
 
     console.print(
-        "[green]"
-        + "═" * 86
-        + "[/]"
+        "[green]" + ("═" * 86) + "[/]"
     )
 
     status = [
@@ -53,9 +51,9 @@ def print_banner(
 
         console.print(
             f"[green][+][/green] "
-            f"[white]{key}[/white] "
-            f"[dim]{dots}[/dim] "
-            f"[cyan]{value}[/cyan]"
+            + f"[white]{key}[/white] "
+            + f"[dim]{dots}[/dim] "
+            + f"[cyan]{value}[/cyan]"
         )
 
     console.print(
@@ -83,13 +81,11 @@ def print_banner(
     for command, description in commands:
         console.print(
             f"  [cyan]{command:<10}[/cyan]"
-            f"{description}"
+            + f"{description}"
         )
 
     console.print(
-        "\n[green]"
-        + "═" * 86
-        + "[/]"
+        "\n[green]" + ("═" * 86) + "[/]"
     )
 
     console.print(

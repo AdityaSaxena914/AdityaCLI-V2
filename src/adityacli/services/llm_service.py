@@ -20,8 +20,8 @@ class LLMService:
         client: LLMClient,
         prompt_builder: PromptBuilder,
     ) -> None:
-        self._client = client
-        self._prompt_builder = prompt_builder
+        self._client: LLMClient = client
+        self._prompt_builder: PromptBuilder = prompt_builder
 
     def generate(
         self,

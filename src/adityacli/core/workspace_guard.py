@@ -13,8 +13,8 @@ class WorkspaceGuard:
     """Centralized workspace path validation."""
 
     def __init__(self, config: AppConfig) -> None:
-        self._workspace = config.workspace.root.resolve()
-        self._max_file_size = config.workspace.max_file_size
+        self._workspace: Path = config.workspace.root.resolve()
+        self._max_file_size: int = config.workspace.max_file_size
 
     def resolve(self, relative_path: str) -> Path:
         path = (self._workspace / relative_path).resolve()

@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from pathlib import Path
 from adityacli.core.file_manager import FileManager
 from adityacli.core.models import (
     Command,
@@ -21,9 +21,9 @@ class OverwriteService:
         file_manager: FileManager,
         store: SessionStore,
     ) -> None:
-        self._parser = parser
-        self._file_manager = file_manager
-        self._store = store
+        self._parser: ResponseParser = parser
+        self._file_manager: FileManager = file_manager
+        self._store: SessionStore = store
 
     def create_request(
         self,
@@ -66,3 +66,24 @@ class OverwriteService:
             )
 
         self._store.flush_memory()
+
+
+    def confirmation_message(
+        self,
+        request: OverwriteRequest,
+        command_text: str,
+    ) -> str:
+        existing_files = [
+            path
+            for path in request.files
+            if Path(path).exists()
+        ]
+
+        is_overwrite = bool(existing_files)
+
+        if command_text.startswith("/write"):
+            if is_overwrite:
+                return "Overwrite existing file(s)?"
+            return "Write new file(s)?"
+
+        return "Apply these changes?"

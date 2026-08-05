@@ -11,8 +11,8 @@ class FileManager:
     """Deterministic filesystem writer."""
 
     def __init__(self, config: AppConfig) -> None:
-        self._config = config
-        self._guard = WorkspaceGuard(config)
+        self._config: AppConfig = config
+        self._guard: WorkspaceGuard = WorkspaceGuard(config)
 
     def write(
         self,
@@ -37,7 +37,7 @@ class FileManager:
         )
 
         try:
-            path.write_text(
+            _=path.write_text(
                 content,
                 encoding=self._config.workspace.encoding,
             )
@@ -84,7 +84,7 @@ class FileManager:
             )
 
             try:
-                path.write_text(
+                _=path.write_text(
                     content,
                     encoding=self._config.workspace.encoding,
                 )

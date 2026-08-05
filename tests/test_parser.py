@@ -39,6 +39,8 @@ def test_parse_multiple_write_files(parser: Parser) -> None:
         "/write {index.html style.css script.js}"
     )
 
+    assert command is not None
+
     assert command.arguments == [
         "index.html",
         "style.css",
@@ -56,8 +58,7 @@ def test_parse_git_command(parser: Parser) -> None:
 
 def test_prompt_after_command(parser: Parser) -> None:
     command = parser.parse(
-        "/read src/main.py\n"
-        "Explain this implementation."
+        "/read src/main.py\n" + "Explain this implementation."
     )
 
     assert command is not None
@@ -66,9 +67,7 @@ def test_prompt_after_command(parser: Parser) -> None:
 
 def test_multiline_prompt(parser: Parser) -> None:
     command = parser.parse(
-        "/edit src/main.py\n"
-        "Refactor this.\n"
-        "Keep public API unchanged."
+        "/edit src/main.py\n" + "Refactor this.\n" + "Keep public API unchanged."
     )
 
     assert command is not None
@@ -80,21 +79,21 @@ def test_multiline_prompt(parser: Parser) -> None:
 
 def test_unknown_command(parser: Parser) -> None:
     with pytest.raises(InvalidCommandError):
-        parser.parse("/foobar")
+        _=parser.parse("/foobar")
 
 
 def test_write_requires_braces(parser: Parser) -> None:
     with pytest.raises(InvalidSyntaxError):
-        parser.parse("/write src/main.py")
+        _=parser.parse("/write src/main.py")
 
 
 def test_git_requires_braces(parser: Parser) -> None:
     with pytest.raises(InvalidSyntaxError):
-        parser.parse("/git status")
+        _=parser.parse("/git status")
 
 
 def test_empty_braces(parser: Parser) -> None:
-    command = parser.parse("/write {}")
+    command = _=parser.parse("/write {}")
 
     assert command is not None
     assert command.arguments == []

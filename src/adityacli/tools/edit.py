@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from typing import override
 import hashlib
 from adityacli.config import AppConfig
 from adityacli.constants import FILE_HEADER
@@ -22,14 +22,15 @@ from adityacli.core.workspace_guard import WorkspaceGuard
 class EditTool(BaseTool):
     """Generate a complete replacement for an existing file."""
     def __init__(self, config: AppConfig) -> None:
-        self._config = config
-        self._guard = WorkspaceGuard(config)
-        self._token_counter = CharacterTokenCounter()
-        self._max_tokens = (
+        self._config: AppConfig = config
+        self._guard: WorkspaceGuard = WorkspaceGuard(config)
+        self._token_counter: CharacterTokenCounter = CharacterTokenCounter()
+        self._max_tokens: int = (
             self._config.workspace.max_file_size
             // CharacterTokenCounter.CHARS_PER_TOKEN
         )
 
+    @override
     def execute(self, command: Command) -> ToolResult:
         if len(command.arguments) != 1:
             raise InvalidPathError(

@@ -10,7 +10,7 @@ class LMStudioConfig:
     api_key: str = "lm-studio"
     model: str = ""
 
-    context_window: int = 65536
+    context_window: int = 15000
 
     timeout: int = 300
 

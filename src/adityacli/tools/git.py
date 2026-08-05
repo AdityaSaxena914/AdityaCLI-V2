@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from typing import override
 import subprocess
 from pathlib import Path
 
@@ -39,12 +39,12 @@ class GitTool(BaseTool):
         "rebase": {"--continue", "--abort", "--skip"},
     }
 
-    _PATH_COMMANDS = {
+    _PATH_COMMANDS: set[str] = {
         "add",
         "restore",
     }
 
-    _FORBIDDEN_PREFIXES = (
+    _FORBIDDEN_PREFIXES: tuple[str, ...] = (
         "-c",
         "--config",
         "--config-env",
@@ -54,14 +54,14 @@ class GitTool(BaseTool):
         "--template",
     )
 
-    _FORBIDDEN_SUBSTRINGS = (
+    _FORBIDDEN_SUBSTRINGS: tuple[str, ...] = (
         "ext::",
         "fd::",
     )
 
     def __init__(self, config: AppConfig) -> None:
-        self._config = config
-        self._workspace = config.workspace.root.resolve()
+        self._config: AppConfig = config
+        self._workspace: Path = config.workspace.root.resolve()
 
     def _validate(
         self,
@@ -114,6 +114,7 @@ class GitTool(BaseTool):
             if subcommand in self._PATH_COMMANDS:
                 self._validate_path(arg)
 
+    @override
     def execute(
         self,
         command: Command,
@@ -128,6 +129,8 @@ class GitTool(BaseTool):
                 cwd=self._workspace,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 shell=False,
                 check=False,
             )

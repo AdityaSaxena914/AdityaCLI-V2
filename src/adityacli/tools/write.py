@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import override
 from adityacli.config import AppConfig
 from adityacli.core.models import (
     Command,
@@ -15,9 +16,10 @@ class WriteTool(BaseTool):
     """Generate one or more new files."""
 
     def __init__(self, config: AppConfig) -> None:
-        self._config = config
-        self._guard = WorkspaceGuard(config)
+        self._config: AppConfig = config
+        self._guard: WorkspaceGuard = WorkspaceGuard(config)
 
+    @override
     def execute(self, command: Command) -> ToolResult:
         if not command.arguments:
             raise InvalidPathError(
@@ -27,7 +29,7 @@ class WriteTool(BaseTool):
         paths: list[str] = []
 
         for relative_path in command.arguments:
-            self._guard.new_file(relative_path)
+            _=self._guard.new_file(relative_path)
             paths.append(relative_path)
 
         sections = [

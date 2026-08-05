@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
+from typing import override
 
 class BaseTokenCounter(ABC):
     """Estimate token usage."""
@@ -21,8 +21,9 @@ class CharacterTokenCounter(BaseTokenCounter):
     ~4 characters ≈ 1 token.
     """
 
-    CHARS_PER_TOKEN = 4
+    CHARS_PER_TOKEN: int = 4
 
+    @override
     def count_text(
         self,
         text: str,

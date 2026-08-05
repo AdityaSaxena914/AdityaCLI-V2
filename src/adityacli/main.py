@@ -1,5 +1,7 @@
-from pathlib import Path
+from __future__ import annotations
+
 import argparse
+from pathlib import Path
 
 from adityacli.cli import CLI
 from adityacli.config import (
@@ -8,11 +10,20 @@ from adityacli.config import (
     SecurityConfig,
     WorkspaceConfig,
 )
+from adityacli.core.file_manager import FileManager
+from adityacli.core.parser import Parser
+from adityacli.core.prompt_builder import PromptBuilder
+from adityacli.core.response_parser import ResponseParser
 from adityacli.core.runtime import Runtime
+from adityacli.core.session_store import SessionStore
 from adityacli.llm.client import LLMClient
-from adityacli.tools.registry import ToolRegistry
-from adityacli.providers.duckduckgo import DuckDuckGoProvider
 from adityacli.prompts import load_prompt
+from adityacli.providers.duckduckgo import DuckDuckGoProvider
+from adityacli.services.chat_service import ChatService
+from adityacli.services.command_service import CommandService
+from adityacli.services.llm_service import LLMService
+from adityacli.services.overwrite_service import OverwriteService
+from adityacli.tools.registry import ToolRegistry
 
 
 def main() -> None:
@@ -21,7 +32,7 @@ def main() -> None:
         description="AdityaCLI",
     )
 
-    parser.add_argument(
+    _ = parser.add_argument(
         "--continue",
         dest="continue_session",
         action="store_true",
@@ -39,26 +50,55 @@ def main() -> None:
     )
 
     client = LLMClient(config.lmstudio)
-    client.health_check()
-    search_provider = DuckDuckGoProvider()
 
     registry = ToolRegistry(
         config=config,
-        search_provider=search_provider,
+        search_provider=DuckDuckGoProvider(),
+    )
+
+    parser_service = Parser()
+    response_parser = ResponseParser()
+    prompt_builder = PromptBuilder()
+
+    store = SessionStore(config.workspace.root)
+    file_manager = FileManager(config)
+
+    command_service = CommandService(
+        parser=parser_service,
+        registry=registry,
+    )
+
+    llm_service = LLMService(
+        client=client,
+        prompt_builder=prompt_builder,
+    )
+
+    overwrite_service = OverwriteService(
+        parser=response_parser,
+        file_manager=file_manager,
+        store=store,
+    )
+
+    chat_service = ChatService(
+        command_service=command_service,
+        llm_service=llm_service,
+        overwrite_service=overwrite_service,
+        store=store,
     )
 
     runtime = Runtime(
         config=config,
-        client=client,
-        registry=registry,
-        continue_session=args.continue_session,
+        parser=parser_service,
+        store=store,
+        chat_service=chat_service,
+        continue_session=args.continue_session,  # pyright: ignore[reportAny]
     )
+
     runtime.add_system_prompt(
         load_prompt("system")
     )
 
-    cli = CLI(runtime)
-    cli.run()
+    CLI(runtime).run()
 
 
 if __name__ == "__main__":

@@ -53,7 +53,7 @@ def test_write_existing_file_without_overwrite(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "a.txt"
-    path.write_text("old")
+    _=path.write_text("old")
 
     with pytest.raises(FileAlreadyExistsError):
         manager.write(
@@ -67,7 +67,7 @@ def test_write_existing_file_with_overwrite(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "a.txt"
-    path.write_text("old")
+    _=path.write_text("old")
 
     manager.write(
         "a.txt",
@@ -97,7 +97,7 @@ def test_write_many_existing_file_without_overwrite(
     manager: FileManager,
     tmp_path: Path,
 ) -> None:
-    (tmp_path / "a.txt").write_text("old")
+    _=(tmp_path / "a.txt").write_text("old")
 
     with pytest.raises(FileAlreadyExistsError):
         manager.write_many(
