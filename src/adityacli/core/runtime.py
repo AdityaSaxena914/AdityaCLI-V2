@@ -15,6 +15,7 @@ from adityacli.llm.client import LLMClient
 from adityacli.tools.registry import ToolRegistry
 from adityacli.core.prompt_builder import PromptBuilder
 from adityacli.services.command_service import CommandService
+from adityacli.services.llm_service import LLMService
 
 
 class Runtime:
@@ -29,7 +30,10 @@ class Runtime:
         continue_session: bool = False,
     ) -> None:
         self._config = config
-        self._client = client
+        self._llm_service = LLMService(
+            client=client,
+            prompt_builder=self._prompt_builder,
+        )
         self._parser = Parser()
         self._registry = registry
 
@@ -95,18 +99,14 @@ class Runtime:
 
             self._session.add_user(text)
 
-        messages = self._prompt_builder.build(
-            messages=self._session.messages,
+        llm_response = self._llm_service.generate(
+            session=self._session,
             tool_result=tool_result,
         )
-
-        llm_response = self._client.generate(messages)
 
         self._last_response = llm_response
 
         response = llm_response.content
-
-        self._session.add_assistant(response)
 
         if command is None:
             self._store.flush_memory()
