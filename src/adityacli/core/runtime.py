@@ -1,4 +1,5 @@
 from adityacli.config import AppConfig
+from collections.abc import Iterator
 from adityacli.core.models import (
     LLMResponse,
     OverwriteRequest,
@@ -12,6 +13,7 @@ from adityacli.services.chat_service import (
     ChatService,
 )
 from adityacli.core.token_budget import TokenBudget
+from adityacli.core.workspace_guard import WorkspaceGuard
 
 class Runtime:
     """Application runtime."""
@@ -36,6 +38,7 @@ class Runtime:
         )
 
         self._last_response: LLMResponse | None = None
+        self._guard: WorkspaceGuard = WorkspaceGuard(config)
 
         self._continued_session: bool = (
             continue_session and self._store.exists
@@ -69,6 +72,19 @@ class Runtime:
         self._last_response = service_result.llm_response
 
         return service_result.result
+
+    def chat_stream(
+        self,
+        text: str,
+    ) -> Iterator[str]:
+        for chunk in self._chat_service.chat_stream(
+            session=self._session,
+            text=text,
+        ):
+            yield chunk
+
+        self._last_response = self._chat_service.last_response
+
 
     def confirm_overwrite(
         self,
@@ -154,3 +170,8 @@ class Runtime:
             completion_tokens=response.completion_tokens,
             speed=speed,
         )
+
+
+    @property
+    def workspace_guard(self) -> WorkspaceGuard:
+        return self._guard

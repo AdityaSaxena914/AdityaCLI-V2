@@ -6,7 +6,7 @@ from pathlib import Path
 class LMStudioConfig:
     host: str = "http://127.0.0.1:1234/v1"
 
-    model: str = "qwen3.5:9b"
+    model: str = ""
 
     context_window: int = 15_000
 

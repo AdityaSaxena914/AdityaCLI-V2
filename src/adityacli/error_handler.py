@@ -43,6 +43,9 @@ class ErrorHandler:
             ),
         )
 
+        if isinstance(exc, FileNotFoundError):
+            return f"File not found: {exc}"
+
         for check, friendly in checks:
             if check(message):
                 return friendly

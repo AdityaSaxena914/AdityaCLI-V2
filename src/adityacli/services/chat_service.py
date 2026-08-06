@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from collections.abc import Iterator
 from adityacli.core.models import (
     ChatResponse,
     RuntimeResult,
@@ -104,6 +104,53 @@ class ChatService:
             llm_response=llm_response,
         )
 
+
+    def chat_stream(
+        self,
+        *,
+        session: Session,
+        text: str,
+    ) -> Iterator[str]:
+        command = self._commands.parse(text)
+
+        tool_result = None
+
+        if command is None:
+            session.add_user(text)
+        else:
+            tool_result = self._commands.execute(command)
+
+            if not tool_result.requires_llm:
+                session.add_user(text)
+                session.add_assistant(tool_result.prompt)
+
+                self._store.flush_memory()
+
+                yield tool_result.prompt
+                return
+
+            for cached_file in tool_result.metadata.files_read:
+                self._store.cache_file(
+                    path=cached_file.path,
+                    content=cached_file.content,
+                )
+
+            session.add_user(text)
+
+        chunks: list[str] = []
+
+        for chunk in self._llm.stream(
+            session=session,
+            tool_result=tool_result,
+        ):
+            chunks.append(chunk)
+            yield chunk
+
+        session.add_assistant("".join(chunks))
+
+        self._store.flush_memory()
+
+
     def confirm_overwrite(
         self,
         request: OverwriteRequest,
@@ -125,3 +172,8 @@ class ChatService:
             request,
             command_text,
         )
+
+    
+    @property
+    def last_response(self) -> LLMResponse | None:
+        return self._llm.last_response

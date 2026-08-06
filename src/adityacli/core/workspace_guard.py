@@ -46,3 +46,27 @@ class WorkspaceGuard:
 
     def new_file(self, relative_path: str) -> Path:
         return self.resolve(relative_path)
+
+    def find_files(
+        self,
+        filename: str,
+    ) -> list[Path]:
+        ignored = {
+            ".git",
+            ".venv",
+            "__pycache__",
+            "node_modules",
+            "build",
+            "dist",
+        }
+
+        matches: list[Path] = []
+
+        for path in self._workspace.rglob(filename):
+            if any(part in ignored for part in path.parts):
+                continue
+
+            if path.is_file():
+                matches.append(path)
+
+        return matches

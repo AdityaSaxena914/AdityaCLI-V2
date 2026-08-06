@@ -1,4 +1,3 @@
-i = 0
-while i <= 100:
-    print(i)
-    i += 1
+name = input("What is your name? ")
+age = int(input("How old are you? "))
+print(f"Hello, {name}! You are {age}.")

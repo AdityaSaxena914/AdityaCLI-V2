@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from collections.abc import Iterator
 from adityacli.core.models import (
     LLMResponse,
     Message,
@@ -50,3 +50,25 @@ class LLMService:
         session.add_assistant(response.content)
 
         return response
+
+    def stream(
+        self,
+        *,
+        session: Session,
+        tool_result: ToolResult | None,
+    ) -> Iterator[str]:
+        messages = self._prompt_builder.build(
+            messages=session.messages,
+            tool_result=tool_result,
+        )
+
+        messages = self._context_manager.trim(messages)
+
+        self._token_budget.validate(messages)
+
+        for chunk in self._client.stream(messages):
+            yield chunk
+
+    @property
+    def last_response(self) -> LLMResponse | None:
+        return self._client.last_response

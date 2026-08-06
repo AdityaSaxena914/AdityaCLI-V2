@@ -40,7 +40,7 @@ class ReadTool(BaseTool):
 
         for relative_path in command.arguments:
             path = self._guard.existing_file(
-                relative_path
+                relative_path,
             )
 
             content = path.read_text(
@@ -103,3 +103,4 @@ class ReadTool(BaseTool):
         return hashlib.sha256(
             content.encode("utf-8")
         ).hexdigest()
+

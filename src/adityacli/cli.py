@@ -102,6 +102,91 @@ class CLI:
                     if response:
                         user_input += "\n" + response
 
+                if (
+                    not user_input.startswith("/")
+                ):
+                    self._console.print("\n[bold green]Assistant:[/]", end=" ")
+
+                    for chunk in self._runtime.chat_stream(user_input):
+                        self._console.print(
+                            chunk,
+                            end="",
+                            highlight=False,
+                            soft_wrap=True,
+                        )
+
+                    self._console.print()
+
+                    stats = self._runtime.response_stats
+
+                    if stats is not None:
+                        status = (
+                            f"[dim]Model:[/] {stats.model} | "
+                            + f"[dim]Time:[/] {stats.elapsed_seconds:.2f}s | "
+                            + f"[dim]Output:[/] {stats.completion_tokens} tok | "
+                            + f"[dim]Speed:[/] {stats.speed:.1f} tok/s"
+                        )
+
+                        self._console.print(status)
+
+                    self._console.print()
+                    continue
+
+                if user_input.startswith("/read "):
+                    filename = user_input[6:].strip()
+
+                    matches = self._runtime.workspace_guard.find_files(
+                        filename
+                    )
+
+                    if not matches:
+                        raise FileNotFoundError(filename)
+
+                    self._console.print()
+
+                    self._console.print("[bold]Matching files:[/]")
+
+                    for i, path in enumerate(matches, start=1):
+                        relative = path.relative_to(
+                            self._runtime.config.workspace.root
+                        )
+
+                        self._console.print(
+                            f"{i}. {relative}"
+                        )
+
+                    self._console.print()
+
+                    choice = Prompt.ask(
+                        f"Select file [1-{len(matches)}]",
+                        default="1",
+                    )
+
+                    try:
+                        index = int(choice) - 1
+                        selected = matches[index]
+                    except (ValueError, IndexError):
+                        self._console.print(
+                            "[red]Invalid selection.[/]\n"
+                        )
+                        continue
+
+                    relative = selected.relative_to(
+                        self._runtime.config.workspace.root
+                    )
+
+                    if not Confirm.ask(
+                        f"Read '{relative}'?",
+                        default=True,
+                    ):
+                        self._console.print(
+                            "[yellow]Operation cancelled.[/]\n"
+                        )
+                        continue
+                    
+
+                    user_input = f"/read {relative}"
+
                 result = self._runtime.chat(user_input)
 
                 if isinstance(result, ChatResponse):
@@ -195,6 +280,20 @@ class CLI:
                     self._console.print(
                         "[bold green]Files written successfully.[/]\n"
                     )
+                    stats = self._runtime.response_stats
+
+                    if stats is not None:
+                        status = (
+                            f"[dim]Model:[/] {stats.model} | "
+                            f"[dim]Time:[/] {stats.elapsed_seconds:.2f}s | "
+                            f"[dim]Output:[/] {stats.completion_tokens} tok | "
+                            f"[dim]Speed:[/] {stats.speed:.1f} tok/s"
+                        )
+
+                        self._console.print(status)
+
+                    self._console.print()
+
                 else:
                     self._console.print(
                         "[yellow]Operation cancelled.[/]\n"
