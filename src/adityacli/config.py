@@ -4,15 +4,16 @@ from pathlib import Path
 
 @dataclass(slots=True, frozen=True)
 class LMStudioConfig:
-    """LM Studio configuration."""
+    host: str = "http://127.0.0.1:1234/v1"
 
-    base_url: str = "http://127.0.0.1:1234/v1"
-    api_key: str = "lm-studio"
-    model: str = ""
+    model: str = "qwen3.5:9b"
 
-    context_window: int = 15000
+    context_window: int = 15_000
 
-    timeout: int = 300
+    temperature: float = 0.1
+    top_p: float = 0.9
+    max_tokens: int = 4_096
+    seed: int = 42
 
 
 @dataclass(slots=True, frozen=True)

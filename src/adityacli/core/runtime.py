@@ -11,7 +11,7 @@ from adityacli.core.session_store import SessionStore
 from adityacli.services.chat_service import (
     ChatService,
 )
-
+from adityacli.core.token_budget import TokenBudget
 
 class Runtime:
     """Application runtime."""
@@ -30,6 +30,10 @@ class Runtime:
         self._parser: Parser = parser
         self._store: SessionStore = store
         self._chat_service: ChatService = chat_service
+
+        self._budget: TokenBudget = TokenBudget(
+            config.lmstudio.context_window,
+        )
 
         self._last_response: LLMResponse | None = None
 

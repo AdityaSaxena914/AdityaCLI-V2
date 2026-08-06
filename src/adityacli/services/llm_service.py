@@ -8,6 +8,9 @@ from adityacli.core.models import (
 from adityacli.core.prompt_builder import PromptBuilder
 from adityacli.core.session import Session
 from adityacli.llm.client import LLMClient
+from adityacli.core.token_budget import TokenBudget
+from adityacli.core.context_manager import ContextManager
+
 
 
 class LLMService:
@@ -19,9 +22,13 @@ class LLMService:
         self,
         client: LLMClient,
         prompt_builder: PromptBuilder,
+        token_budget: TokenBudget,
+        context_manager: ContextManager
     ) -> None:
         self._client: LLMClient = client
         self._prompt_builder: PromptBuilder = prompt_builder
+        self._token_budget: TokenBudget = token_budget
+        self._context_manager: ContextManager = context_manager
 
     def generate(
         self,
@@ -31,8 +38,12 @@ class LLMService:
     ) -> LLMResponse:
         messages: list[Message] = self._prompt_builder.build(
             messages=session.messages,
-            tool_result=tool_result,
+            tool_result=tool_result,        
         )
+
+        messages = self._context_manager.trim(messages)
+
+        self._token_budget.validate(messages)
 
         response = self._client.generate(messages)
 

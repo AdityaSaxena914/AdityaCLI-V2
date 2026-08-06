@@ -83,3 +83,6 @@ class GitError(AdityaCLIError):
 
 class ToolExecutionError(AdityaCLIError):
     """Raised when a deterministic tool fails during execution."""
+
+class ContextWindowExceededError(Exception):
+    """Prompt exceeds the configured context window."""

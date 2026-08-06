@@ -17,10 +17,11 @@ class LLMClient:
     """LM Studio client."""
 
     def __init__(self, config: LMStudioConfig) -> None:
+        self._config: LMStudioConfig = config
+
         self._client: OpenAI = OpenAI(
-            api_key=config.api_key,
-            base_url=config.base_url,
-            timeout=config.timeout,
+            api_key="lm-studio",
+            base_url=config.host,
         )
 
         self._model: str = config.model
@@ -51,6 +52,10 @@ class LLMClient:
             response = self._client.chat.completions.create(
                 model=self._model,
                 messages=payload,
+                temperature=self._config.temperature,
+                top_p=self._config.top_p,
+                max_tokens=self._config.max_tokens,
+                seed=self._config.seed,
             )
 
             elapsed = perf_counter() - start

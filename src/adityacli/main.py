@@ -24,6 +24,8 @@ from adityacli.services.command_service import CommandService
 from adityacli.services.llm_service import LLMService
 from adityacli.services.overwrite_service import OverwriteService
 from adityacli.tools.registry import ToolRegistry
+from adityacli.core.token_budget import TokenBudget
+from adityacli.core.context_manager import ContextManager
 
 
 def main() -> None:
@@ -60,6 +62,13 @@ def main() -> None:
     response_parser = ResponseParser()
     prompt_builder = PromptBuilder()
 
+    token_budget = TokenBudget(
+        config.lmstudio.context_window,
+    )
+    context_manager = ContextManager(
+        config.lmstudio.context_window,
+    )
+
     store = SessionStore(config.workspace.root)
     file_manager = FileManager(config)
 
@@ -71,6 +80,8 @@ def main() -> None:
     llm_service = LLMService(
         client=client,
         prompt_builder=prompt_builder,
+        token_budget=token_budget,
+        context_manager=context_manager,
     )
 
     overwrite_service = OverwriteService(

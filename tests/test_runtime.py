@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-
+from typing import cast
 from adityacli.config import (
     AppConfig,
     LMStudioConfig,
@@ -10,178 +10,118 @@ from adityacli.config import (
 )
 from adityacli.core.models import (
     ChatResponse,
-    Command,
+    LLMResponse,
     OverwriteRequest,
-    Role,
-    Tool,
 )
+from adityacli.services.chat_service import (
+    ChatService,
+    ChatServiceResult,
+)
+from adityacli.core.parser import Parser
 from adityacli.core.runtime import Runtime
-from adityacli.core.models import (
-    ToolMetadata,
-    ToolResult,
-)
+from adityacli.core.session_store import SessionStore
+from adityacli.core.session import Session
 
 
-class FakeLLMClient:
-    def __init__(self, response: str) -> None:
-        self.response = response
-        self.calls = 0
+class FakeChatService:
+    def __init__(self) -> None:
+        self.chat_calls: int = 0
+        self.overwrite_calls: int = 0
 
-    def generate(self, messages):
-        self.calls += 1
-        return self.response
+    def chat(
+        self,
+        *,
+        session: Session,
+        text: str,
+    ) -> ChatServiceResult:
+        del session
+        del text
+        self.chat_calls += 1
 
-
-class FakeRegistry:
-    def __init__(self, prompt: str = "tool prompt") -> None:
-        self.prompt = prompt
-        self.calls = 0
-        self.last_command = None
-
-    def execute(self, command: Command) -> str:
-        self.calls += 1
-        self.last_command = command
-        return ToolResult(
-            prompt=self.prompt,
-            metadata=ToolMetadata(),
+        return ChatServiceResult(
+            result=ChatResponse("reply"),
+            llm_response=LLMResponse(
+                content="reply",
+                model="test",
+                prompt_tokens=10,
+                completion_tokens=20,
+                total_tokens=30,
+                elapsed_seconds=2.0,
+            ),
         )
+
+    def confirm_overwrite(
+        self,
+        request: OverwriteRequest,
+    ) -> None:
+        del request
+        self.overwrite_calls += 1
+
+    def needs_followup(
+        self,
+        text: str,
+    ) -> str | None:
+        del text
+        return None
+
+    def confirmation_message(
+        self,
+        request: OverwriteRequest,
+        command_text: str,
+    ) -> str:
+        del request
+        del command_text
+        return "confirm?"
 
 
 @pytest.fixture
-def config(tmp_path: Path) -> AppConfig:
-    return AppConfig(
+def runtime(tmp_path: Path) -> Runtime:
+    config = AppConfig(
         workspace=WorkspaceConfig(root=tmp_path),
         lmstudio=LMStudioConfig(),
         security=SecurityConfig(),
     )
 
-
-def test_plain_chat(config: AppConfig) -> None:
-    runtime = Runtime(
+    return Runtime(
         config=config,
-        client=FakeLLMClient("Hello!"),
-        registry=FakeRegistry(),
+        parser=Parser(),
+        store=SessionStore(tmp_path),
+        chat_service=cast(
+            ChatService,
+            cast(
+                object,
+                FakeChatService(),
+            ),
+        ),
     )
 
-    result = runtime.chat("Hi")
+
+def test_chat(runtime: Runtime) -> None:
+    result = runtime.chat("hello")
 
     assert isinstance(result, ChatResponse)
-    assert result.content == "Hello!"
+    assert result.content == "reply"
 
 
-def test_session_is_updated(config: AppConfig) -> None:
-    runtime = Runtime(
-        config=config,
-        client=FakeLLMClient("Reply"),
-        registry=FakeRegistry(),
-    )
+def test_add_system_prompt(runtime: Runtime) -> None:
+    runtime.add_system_prompt("system")
 
-    runtime.chat("Hello")
-
-    messages = runtime.session.messages
-
-    assert len(messages) == 2
-    assert messages[0].role is Role.USER
-    assert messages[1].role is Role.ASSISTANT
+    assert runtime.session.messages[0].content == "system"
 
 
-def test_registry_is_used(config: AppConfig) -> None:
-    registry = FakeRegistry("expanded prompt")
-
-    runtime = Runtime(
-        config=config,
-        client=FakeLLMClient("Answer"),
-        registry=registry,
-    )
-
-    runtime.chat("/search main")
-
-    assert registry.calls == 1
-    assert registry.last_command.tool is Tool.SEARCH
-
-
-def test_write_returns_overwrite_request(config: AppConfig) -> None:
-    llm = FakeLLMClient(
-        """
-=== FILE: hello.py ===
-print("hello")
-""".strip()
-    )
-
-    runtime = Runtime(
-        config=config,
-        client=llm,
-        registry=FakeRegistry(),
-    )
-
-    result = runtime.chat("/write {hello.py}")
-
-    assert isinstance(result, OverwriteRequest)
-    assert result.files == {
-        "hello.py": 'print("hello")'
-    }
-
-
-def test_edit_returns_overwrite_request(config: AppConfig) -> None:
-    runtime = Runtime(
-        config=config,
-        client=FakeLLMClient("print('updated')"),
-        registry=FakeRegistry(),
-    )
-
-    result = runtime.chat("/edit hello.py")
-
-    assert isinstance(result, OverwriteRequest)
-    assert result.files == {
-        "hello.py": "print('updated')"
-    }
-
-
-def test_confirm_overwrite(config: AppConfig) -> None:
-    runtime = Runtime(
-        config=config,
-        client=FakeLLMClient(""),
-        registry=FakeRegistry(),
-    )
-
-    runtime.confirm_overwrite(
-        OverwriteRequest(
-            {
-                "a.txt": "hello"
-            }
-        )
-    )
-
-    assert (
-        config.workspace.root / "a.txt"
-    ).read_text() == "hello"
-
-
-def test_clear_session(config: AppConfig) -> None:
-    runtime = Runtime(
-        config=config,
-        client=FakeLLMClient("Reply"),
-        registry=FakeRegistry(),
-    )
-
-    runtime.chat("Hello")
-
-    assert runtime.session.messages
-
+def test_clear(runtime: Runtime) -> None:
+    runtime.add_system_prompt("system")
     runtime.clear()
 
-    assert runtime.session.messages == []
-
-
-def test_add_system_prompt(config: AppConfig) -> None:
-    runtime = Runtime(
-        config=config,
-        client=FakeLLMClient(""),
-        registry=FakeRegistry(),
-    )
-
-    runtime.add_system_prompt("You are helpful.")
-
     assert len(runtime.session.messages) == 1
-    assert runtime.session.messages[0].role is Role.SYSTEM
-    assert runtime.session.messages[0].content == "You are helpful."
+    assert runtime.session.messages[0].content == "system"
+
+
+def test_response_stats(runtime: Runtime) -> None:
+    _=runtime.chat("hello")
+
+    stats = runtime.response_stats
+
+    assert stats is not None
+    assert stats.model == "test"
+    assert stats.speed == 10.0
