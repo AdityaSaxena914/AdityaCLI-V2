@@ -79,29 +79,29 @@ class OverwriteRequest:
     files: dict[str, str]
 
 
+@dataclass(slots=True)
+class PendingSelectionRequest:
+    """
+    Pending disambiguation for a /read query that matched more than
+    one file. The CLI's only job is to render `candidates` and send
+    back the chosen index — resolution logic itself never lives there.
+    """
+
+    query: str
+    candidates: tuple[str, ...]
+    original_command: Command
+
 
 RuntimeResult: TypeAlias = (
     ChatResponse
     | OverwriteRequest
+    | PendingSelectionRequest
 )
 
 
 # ---------------------------------------------------------------------------
 # Tool execution models
 # ---------------------------------------------------------------------------
-
-@dataclass(slots=True, frozen=True)
-class CachedFile:
-    """
-    A deterministic file that has been collected by a tool.
-
-    Runtime decides whether it should be persisted into session memory.
-    """
-
-    path: str
-    content: str
-    sha256: str
-
 
 @dataclass(slots=True, frozen=True)
 class ToolMetadata:
@@ -112,7 +112,7 @@ class ToolMetadata:
     Unused fields remain empty.
     """
 
-    files_read: tuple[CachedFile, ...] = ()
+    files_read: tuple[tuple[str, str], ...] = ()
 
     files_written: tuple[str, ...] = ()
 
@@ -145,6 +145,8 @@ class LLMResponse:
     total_tokens: int
 
     elapsed_seconds: float
+
+    finish_reason: str = "stop"
 
 
 @dataclass(slots=True)

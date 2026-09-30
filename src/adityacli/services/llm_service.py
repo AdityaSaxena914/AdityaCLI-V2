@@ -1,5 +1,7 @@
 from __future__ import annotations
-from collections.abc import Iterator
+
+from adityacli.config import AppConfig
+from adityacli.core.context_manager import ContextManager
 from adityacli.core.models import (
     LLMResponse,
     Message,
@@ -7,10 +9,17 @@ from adityacli.core.models import (
 )
 from adityacli.core.prompt_builder import PromptBuilder
 from adityacli.core.session import Session
+from adityacli.core.token_counter import CharacterTokenCounter
+from adityacli.exceptions import TruncatedResponseError
 from adityacli.llm.client import LLMClient
-from adityacli.core.token_budget import TokenBudget
-from adityacli.core.context_manager import ContextManager
 
+
+# The write/edit prompts must instruct the model to emit this exact
+# line as the last line of its response. It is passed as a `stop`
+# sequence (hard stop at the API level) and also gives ResponseParser
+# a positive "the model believes it finished" signal independent of
+# hitting the token budget.
+END_OF_FILE_SENTINEL = "=== END FILE ==="
 
 
 class LLMService:
@@ -22,13 +31,22 @@ class LLMService:
         self,
         client: LLMClient,
         prompt_builder: PromptBuilder,
-        token_budget: TokenBudget,
-        context_manager: ContextManager
+        config: AppConfig,
     ) -> None:
         self._client: LLMClient = client
         self._prompt_builder: PromptBuilder = prompt_builder
-        self._token_budget: TokenBudget = token_budget
-        self._context_manager: ContextManager = context_manager
+        self._config: AppConfig = config
+        self._token_counter: CharacterTokenCounter = CharacterTokenCounter()
+
+        # History budget leaves room for the completion itself; the
+        # reserve is shared with _compute_max_tokens below so the two
+        # never fight over the same tokens.
+        self._context: ContextManager = ContextManager(
+            context_window=(
+                config.lmstudio.context_window
+                - config.lmstudio.completion_reserve_tokens
+            )
+        )
 
     def generate(
         self,
@@ -38,37 +56,58 @@ class LLMService:
     ) -> LLMResponse:
         messages: list[Message] = self._prompt_builder.build(
             messages=session.messages,
-            tool_result=tool_result,        
+            tool_result=tool_result,
+            read_files=session.read_files,
         )
 
-        messages = self._context_manager.trim(messages)
+        messages = self._context.trim(messages)
 
-        self._token_budget.validate(messages)
+        max_tokens = self._compute_max_tokens(messages)
+        stop = self._stop_sequences(tool_result)
 
-        response = self._client.generate(messages)
+        response = self._client.generate(
+            messages,
+            max_tokens=max_tokens,
+            stop=stop,
+        )
+
+        if response.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"Generation hit the {max_tokens}-token completion "
+                "budget before the model finished (context_window="
+                f"{self._config.lmstudio.context_window}). Reduce "
+                "prompt size, raise context_window, or shorten the "
+                "requested output and retry."
+            )
 
         session.add_assistant(response.content)
 
         return response
 
-    def stream(
-        self,
-        *,
-        session: Session,
-        tool_result: ToolResult | None,
-    ) -> Iterator[str]:
-        messages = self._prompt_builder.build(
-            messages=session.messages,
-            tool_result=tool_result,
+    def _compute_max_tokens(self, messages: list[Message]) -> int:
+        prompt_tokens_estimate = self._token_counter.count_messages(
+            messages
         )
 
-        messages = self._context_manager.trim(messages)
+        budget = (
+            self._config.lmstudio.context_window
+            - prompt_tokens_estimate
+            - self._config.lmstudio.completion_reserve_tokens
+        )
 
-        self._token_budget.validate(messages)
+        # Never send a non-positive or absurdly small budget; a floor
+        # keeps this deterministic and loud (a real failure downstream)
+        # rather than silently asking for a 1-token completion.
+        return max(256, budget)
 
-        for chunk in self._client.stream(messages):
-            yield chunk
+    def _stop_sequences(
+        self,
+        tool_result: ToolResult | None,
+    ) -> list[str] | None:
+        if tool_result is None:
+            return None
 
-    @property
-    def last_response(self) -> LLMResponse | None:
-        return self._client.last_response
+        if tool_result.metadata.files_written:
+            return [END_OF_FILE_SENTINEL]
+
+        return None

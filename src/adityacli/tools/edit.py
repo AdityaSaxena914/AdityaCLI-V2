@@ -1,10 +1,8 @@
 from __future__ import annotations
 from typing import override
-import hashlib
 from adityacli.config import AppConfig
 from adityacli.constants import FILE_HEADER
 from adityacli.core.models import (
-    CachedFile,
     Command,
     ToolMetadata,
     ToolResult,
@@ -67,15 +65,6 @@ class EditTool(BaseTool):
         return ToolResult(
             prompt=prompt,
             metadata=ToolMetadata(
-                files_read=(
-                    CachedFile(
-                        path=relative_path,
-                        content=content,
-                        sha256=hashlib.sha256(
-                            content.encode("utf-8")
-                        ).hexdigest(),
-                    ),
-                ),
                 files_written=(relative_path,),
             ),
         )

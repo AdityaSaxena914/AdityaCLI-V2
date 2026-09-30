@@ -1,15 +1,15 @@
 from __future__ import annotations
 from typing import override
-import hashlib
+from pathlib import Path
 from adityacli.config import AppConfig
 from adityacli.core.models import (
-    CachedFile,
     Command,
     ToolMetadata,
     ToolResult,
 )
 from adityacli.core.token_counter import CharacterTokenCounter
-from adityacli.exceptions import FileTooLargeError
+from adityacli.core.path_resolver import PathResolver
+from adityacli.exceptions import AmbiguousPathError, FileTooLargeError
 from adityacli.core.workspace_guard import WorkspaceGuard
 from adityacli.tools.base import BaseTool
 from adityacli.prompts import load_prompt
@@ -19,13 +19,25 @@ class ReadTool(BaseTool):
     """
     Read one or more files from the workspace.
 
-    The Runtime decides whether these files should be persisted into
-    session memory.
+    Resolution order per argument:
+      1. Exact workspace-relative path (fast path, unchanged behavior
+         for already-correct paths).
+      2. Fall back to PathResolver.find_by_name -- the same resolver
+         /search uses. Exactly one match -> proceed. Zero matches ->
+         FileNotFoundError. More than one -> AmbiguousPathError,
+         caught upstream (ChatService) and turned into a
+         PendingSelectionRequest; this tool never talks to the CLI.
+
+    When no natural-language prompt is attached, this is a pure
+    display command (requires_llm=False) -- file content streams to
+    the terminal directly, no LLM round-trip. A prompt attached to
+    /read ("summarize this") is the one case that still needs the LLM.
     """
 
     def __init__(self, config: AppConfig) -> None:
         self._config: AppConfig = config
         self._guard: WorkspaceGuard = WorkspaceGuard(config)
+        self._resolver: PathResolver = PathResolver(config)
         self._token_counter: CharacterTokenCounter = CharacterTokenCounter()
 
         self._max_tokens: int = (
@@ -33,15 +45,39 @@ class ReadTool(BaseTool):
             // CharacterTokenCounter.CHARS_PER_TOKEN
         )
 
+    def _resolve_one(self, query: str) -> Path:
+        try:
+            return self._guard.existing_file(query)
+        except (FileNotFoundError, OSError):
+            pass
+
+        matches = self._resolver.find_by_name(query)
+
+        if not matches:
+            raise FileNotFoundError(query)
+
+        if len(matches) > 1:
+            workspace = self._resolver.workspace
+            raise AmbiguousPathError(
+                query=query,
+                candidates=[
+                    str(path.relative_to(workspace))
+                    for path in matches
+                ],
+            )
+
+        return matches[0]
+
     @override
     def execute(self, command: Command) -> ToolResult:
-        sections: list[str] = []
-        files_read: list[CachedFile] = []
+        workspace = self._resolver.workspace
+        display_sections: list[str] = []
+        llm_sections: list[str] = []
+        files_read: list[tuple[str, str]] = []
 
-        for relative_path in command.arguments:
-            path = self._guard.existing_file(
-                relative_path,
-            )
+        for query in command.arguments:
+            path = self._resolve_one(query)
+            relative_path = str(path.relative_to(workspace))
 
             content = path.read_text(
                 encoding=self._config.workspace.encoding,
@@ -53,15 +89,19 @@ class ReadTool(BaseTool):
                     f"{relative_path} exceeds the maximum token limit."
                 )
 
-            files_read.append(
-                CachedFile(
-                    path=relative_path,
-                    content=content,
-                    sha256=self._sha256(content),
+            files_read.append((relative_path, content))
+
+            display_sections.append(
+                "\n".join(
+                    [
+                        f"=== FILE: {relative_path} ===",
+                        content,
+                        "",
+                    ]
                 )
             )
 
-            sections.append(
+            llm_sections.append(
                 "\n".join(
                     [
                         "===== BEGIN UNTRUSTED FILE =====",
@@ -73,34 +113,23 @@ class ReadTool(BaseTool):
                 )
             )
 
-
-        prompt = (
-            load_prompt("read")
-            + "\n\n"
-            + "\n".join(sections)
-        )
-        
         if command.prompt:
-            prompt += (
-                "\n=== USER REQUEST ===\n"
+            prompt = (
+                load_prompt("read")
+                + "\n\n"
+                + "\n".join(llm_sections)
+                + "\n=== USER REQUEST ===\n"
                 + command.prompt
             )
+            requires_llm = True
         else:
-            prompt += (
-                "\n=== USER REQUEST ===\n"
-                "Read and understand these files."
-            )            
+            prompt = "\n".join(display_sections)
+            requires_llm = False
 
         return ToolResult(
             prompt=prompt,
             metadata=ToolMetadata(
                 files_read=tuple(files_read),
             ),
+            requires_llm=requires_llm,
         )
-
-    @staticmethod
-    def _sha256(content: str) -> str:
-        return hashlib.sha256(
-            content.encode("utf-8")
-        ).hexdigest()
-

@@ -36,6 +36,11 @@ class Parser:
                         )
 
                     raw_args = raw_args[1:-1].strip()
+                elif tool is Tool.READ:
+                    # Braces are optional for READ: '/read runtime' and
+                    # '/read {runtime.py}' must both reach the resolver.
+                    if raw_args.startswith("{") and raw_args.endswith("}"):
+                        raw_args = raw_args[1:-1].strip()
 
                 arguments = raw_args.split()
 

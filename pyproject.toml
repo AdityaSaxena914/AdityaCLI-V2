@@ -12,14 +12,10 @@ authors = [
 
 
 dependencies = [
-    "typer>=0.16.0",
     "rich>=14.0.0",
-    "pydantic>=2.11.0",
-    "pydantic-settings>=2.10.0",
-    "python-dotenv>=1.1.0",
     "openai>=1.100.0",
-    "httpx>=0.28.0",
     "ddgs>=9.5.5",
+    "prompt-toolkit>=3.0.0",
 ]
 
 [project.optional-dependencies]

@@ -1,8 +1,8 @@
 from adityacli.config import AppConfig
-from collections.abc import Iterator
 from adityacli.core.models import (
     LLMResponse,
     OverwriteRequest,
+    PendingSelectionRequest,
     RuntimeResult,
     ResponseStats,
 )
@@ -12,8 +12,7 @@ from adityacli.core.session_store import SessionStore
 from adityacli.services.chat_service import (
     ChatService,
 )
-from adityacli.core.token_budget import TokenBudget
-from adityacli.core.workspace_guard import WorkspaceGuard
+
 
 class Runtime:
     """Application runtime."""
@@ -33,19 +32,17 @@ class Runtime:
         self._store: SessionStore = store
         self._chat_service: ChatService = chat_service
 
-        self._budget: TokenBudget = TokenBudget(
-            config.lmstudio.context_window,
-        )
-
         self._last_response: LLMResponse | None = None
-        self._guard: WorkspaceGuard = WorkspaceGuard(config)
 
         self._continued_session: bool = (
             continue_session and self._store.exists
         )
 
         if self._continued_session:
-            self._session = Session(self._store)
+            self._session = Session(
+                self._store,
+                max_read_tokens=config.lmstudio.context_window // 4,
+            )
             self._session.load()
         else:
             self._store.clear(
@@ -53,7 +50,10 @@ class Runtime:
                 context_window=config.lmstudio.context_window,
             )
 
-            self._session: Session = Session(self._store)
+            self._session: Session = Session(
+                self._store,
+                max_read_tokens=config.lmstudio.context_window // 4,
+            )
 
     @property
     def session(self) -> Session:
@@ -73,24 +73,26 @@ class Runtime:
 
         return service_result.result
 
-    def chat_stream(
-        self,
-        text: str,
-    ) -> Iterator[str]:
-        for chunk in self._chat_service.chat_stream(
-            session=self._session,
-            text=text,
-        ):
-            yield chunk
-
-        self._last_response = self._chat_service.last_response
-
-
     def confirm_overwrite(
         self,
         request: OverwriteRequest,
     ) -> None:
         self._chat_service.confirm_overwrite(request)
+
+    def confirm_read_selection(
+        self,
+        request: PendingSelectionRequest,
+        index: int,
+    ) -> RuntimeResult:
+        service_result = self._chat_service.resolve_selection(
+            session=self._session,
+            request=request,
+            index=index,
+        )
+
+        self._last_response = service_result.llm_response
+
+        return service_result.result
 
     def clear(self) -> None:
         system_messages = [
@@ -170,8 +172,3 @@ class Runtime:
             completion_tokens=response.completion_tokens,
             speed=speed,
         )
-
-
-    @property
-    def workspace_guard(self) -> WorkspaceGuard:
-        return self._guard

@@ -3,15 +3,35 @@ from rich.prompt import Confirm, Prompt
 
 from pathlib import Path
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.key_binding import KeyBindings
 from rich.rule import Rule
 from rich.syntax import Syntax
 
 from adityacli.constants import PROMPT
-from adityacli.core.models import ChatResponse
+from adityacli.core.models import ChatResponse, PendingSelectionRequest
 from adityacli.core.runtime import Runtime
 from adityacli.error_handler import ErrorHandler
 from adityacli.ui.diff import build_diff
 from adityacli.ui.banner import print_banner
+
+
+# True Shift+Enter can't be relied on: most terminals -- including
+# Windows PowerShell/cmd, confirmed by testing -- send the identical
+# byte sequence for Shift+Enter and plain Enter, and Escape-key
+# detection is also flaky there. Rather than repurpose Enter (which
+# broke plain single-line commands with no visible cue), Enter keeps
+# submitting as it always did, and Ctrl+J is the explicit "insert a
+# newline" key when composing a multi-line prompt is actually wanted.
+def _newline_bindings() -> KeyBindings:
+    bindings = KeyBindings()
+
+    @bindings.add("c-j")
+    def _(event) -> None:  # pyright: ignore[reportUnknownParameterType]
+        event.current_buffer.insert_text("\n")
+
+    return bindings
+
 
 class CLI:
     """Interactive CLI."""
@@ -19,6 +39,9 @@ class CLI:
     def __init__(self, runtime: Runtime) -> None:
         self._runtime: Runtime = runtime
         self._console: Console = Console()
+        self._input: PromptSession[str] = PromptSession(
+            key_bindings=_newline_bindings(),
+        )
 
     def run(self) -> None:
         print_banner(
@@ -35,7 +58,7 @@ class CLI:
 
         while True:
             try:
-                user_input = Prompt.ask(PROMPT).strip()
+                user_input = self._input.prompt(PROMPT).strip()
             except (KeyboardInterrupt, EOFError):
                 self._console.print()
                 break
@@ -102,91 +125,6 @@ class CLI:
                     if response:
                         user_input += "\n" + response
 
-                if (
-                    not user_input.startswith("/")
-                ):
-                    self._console.print("\n[bold green]Assistant:[/]", end=" ")
-
-                    for chunk in self._runtime.chat_stream(user_input):
-                        self._console.print(
-                            chunk,
-                            end="",
-                            highlight=False,
-                            soft_wrap=True,
-                        )
-
-                    self._console.print()
-
-                    stats = self._runtime.response_stats
-
-                    if stats is not None:
-                        status = (
-                            f"[dim]Model:[/] {stats.model} | "
-                            + f"[dim]Time:[/] {stats.elapsed_seconds:.2f}s | "
-                            + f"[dim]Output:[/] {stats.completion_tokens} tok | "
-                            + f"[dim]Speed:[/] {stats.speed:.1f} tok/s"
-                        )
-
-                        self._console.print(status)
-
-                    self._console.print()
-                    continue
-
-                if user_input.startswith("/read "):
-                    filename = user_input[6:].strip()
-
-                    matches = self._runtime.workspace_guard.find_files(
-                        filename
-                    )
-
-                    if not matches:
-                        raise FileNotFoundError(filename)
-
-                    self._console.print()
-
-                    self._console.print("[bold]Matching files:[/]")
-
-                    for i, path in enumerate(matches, start=1):
-                        relative = path.relative_to(
-                            self._runtime.config.workspace.root
-                        )
-
-                        self._console.print(
-                            f"{i}. {relative}"
-                        )
-
-                    self._console.print()
-
-                    choice = Prompt.ask(
-                        f"Select file [1-{len(matches)}]",
-                        default="1",
-                    )
-
-                    try:
-                        index = int(choice) - 1
-                        selected = matches[index]
-                    except (ValueError, IndexError):
-                        self._console.print(
-                            "[red]Invalid selection.[/]\n"
-                        )
-                        continue
-
-                    relative = selected.relative_to(
-                        self._runtime.config.workspace.root
-                    )
-
-                    if not Confirm.ask(
-                        f"Read '{relative}'?",
-                        default=True,
-                    ):
-                        self._console.print(
-                            "[yellow]Operation cancelled.[/]\n"
-                        )
-                        continue
-                    
-
-                    user_input = f"/read {relative}"
-
                 result = self._runtime.chat(user_input)
 
                 if isinstance(result, ChatResponse):
@@ -205,6 +143,35 @@ class CLI:
 
                         self._console.print(status)
                     self._console.print()
+                    continue
+
+                if isinstance(result, PendingSelectionRequest):
+                    self._console.print()
+                    self._console.print(
+                        f"[yellow]'{result.query}' matched multiple files:[/]"
+                    )
+
+                    for i, path in enumerate(result.candidates, start=1):
+                        self._console.print(f"  [{i}] {path}")
+
+                    choice = Prompt.ask(
+                        "Select a file",
+                        choices=[
+                            str(i)
+                            for i in range(1, len(result.candidates) + 1)
+                        ],
+                    )
+
+                    selection_result = self._runtime.confirm_read_selection(
+                        result,
+                        int(choice) - 1,
+                    )
+
+                    if isinstance(selection_result, ChatResponse):
+                        self._console.print()
+                        self._console.print(selection_result.content)
+                        self._console.print()
+
                     continue
 
                 request = result
@@ -280,20 +247,6 @@ class CLI:
                     self._console.print(
                         "[bold green]Files written successfully.[/]\n"
                     )
-                    stats = self._runtime.response_stats
-
-                    if stats is not None:
-                        status = (
-                            f"[dim]Model:[/] {stats.model} | "
-                            f"[dim]Time:[/] {stats.elapsed_seconds:.2f}s | "
-                            f"[dim]Output:[/] {stats.completion_tokens} tok | "
-                            f"[dim]Speed:[/] {stats.speed:.1f} tok/s"
-                        )
-
-                        self._console.print(status)
-
-                    self._console.print()
-
                 else:
                     self._console.print(
                         "[yellow]Operation cancelled.[/]\n"

@@ -13,6 +13,7 @@ from adityacli.exceptions import (
     InvalidSyntaxError,
     ToolExecutionError,
 )
+from adityacli.core.path_resolver import PathResolver
 from adityacli.tools.base import BaseTool
 
 
@@ -42,6 +43,7 @@ class SearchTool(BaseTool):
         config: AppConfig,
     ) -> None:
         self._config: AppConfig = config
+        self._resolver: PathResolver = PathResolver(config)
 
     @override
     def execute(
@@ -102,34 +104,12 @@ class SearchTool(BaseTool):
         self,
         query: str,
     ) -> list[str]:
-        workspace = self._config.workspace.root.resolve()
+        workspace = self._resolver.workspace
 
-        query_lower = query.lower()
-
-        matches: list[str] = []
-
-        for path in workspace.rglob("*"):
-            if any(
-                part in _IGNORE_DIRS
-                for part in path.parts
-            ):
-                continue
-
-            if not path.is_file():
-                continue
-
-            stem = path.stem.lower()
-            name = path.name.lower()
-
-            if (
-                query_lower == stem
-                or query_lower == name
-            ):
-                matches.append(
-                    str(path.relative_to(workspace))
-                )
-
-        return matches
+        return [
+            str(path.relative_to(workspace))
+            for path in self._resolver.find_by_name(query)
+        ]
 
 
     def _ripgrep(

@@ -57,13 +57,7 @@ def test_execute_read(
     result = registry.execute(command)
 
     assert "hello" in result.prompt
-    assert len(result.metadata.files_read) == 1
-
-    cached = result.metadata.files_read[0]
-
-    assert cached.path == "hello.txt"
-    assert cached.content == "hello"
-    assert cached.sha256
+    assert result.requires_llm is True
 
 
 def test_execute_unknown_tool(

@@ -7,7 +7,6 @@ from adityacli.core.models import (
     Tool,
 )
 from adityacli.core.response_parser import ResponseParser
-from adityacli.core.session_store import SessionStore
 
 
 class OverwriteService:
@@ -19,11 +18,9 @@ class OverwriteService:
         self,
         parser: ResponseParser,
         file_manager: FileManager,
-        store: SessionStore,
     ) -> None:
         self._parser: ResponseParser = parser
         self._file_manager: FileManager = file_manager
-        self._store: SessionStore = store
 
     def create_request(
         self,
@@ -38,9 +35,7 @@ class OverwriteService:
             return OverwriteRequest(files)
 
         if command.tool is Tool.EDIT:
-            content = self._parser.parse_edit_response(
-                response,
-            )
+            content = self._parser.parse_edit_response(response)
 
             return OverwriteRequest(
                 {
@@ -50,23 +45,8 @@ class OverwriteService:
 
         return None
 
-    def confirm(
-        self,
-        request: OverwriteRequest,
-    ) -> None:
-        self._file_manager.write_many(
-            request.files,
-            overwrite=True,
-        )
-
-        for path, content in request.files.items():
-            self._store.cache_file(
-                path=path,
-                content=content,
-            )
-
-        self._store.flush_memory()
-
+    def confirm(self, request: OverwriteRequest) -> None:
+        self._file_manager.write_many(request.files, overwrite=True)
 
     def confirmation_message(
         self,
@@ -74,9 +54,7 @@ class OverwriteService:
         command_text: str,
     ) -> str:
         existing_files = [
-            path
-            for path in request.files
-            if Path(path).exists()
+            path for path in request.files if Path(path).exists()
         ]
 
         is_overwrite = bool(existing_files)

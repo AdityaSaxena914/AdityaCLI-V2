@@ -4,16 +4,21 @@ from pathlib import Path
 
 @dataclass(slots=True, frozen=True)
 class LMStudioConfig:
-    host: str = "http://127.0.0.1:1234/v1"
+    """LM Studio configuration."""
 
+    base_url: str = "http://127.0.0.1:1234/v1"
+    api_key: str = "lm-studio"
     model: str = ""
 
-    context_window: int = 15_000
+    context_window: int = 15000
 
-    temperature: float = 0.1
-    top_p: float = 0.9
-    max_tokens: int = 4_096
-    seed: int = 42
+    timeout: int = 300
+
+    # Tokens deducted from context_window - prompt_tokens when computing
+    # the per-request completion budget. Covers estimation error from
+    # CharacterTokenCounter (chars/4 approximation) plus formatting
+    # overhead, so the model isn't cut off exactly at the wire.
+    completion_reserve_tokens: int = 512
 
 
 @dataclass(slots=True, frozen=True)
