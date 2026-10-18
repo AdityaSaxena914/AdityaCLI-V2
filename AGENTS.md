@@ -113,11 +113,12 @@ not autonomously invoke tools. See [README.md](README.md) and
   claimed. During remediation, no actual user-session Clear, user-repository
   staging/commits, or Git remote operations were performed.
 
-## Current change: main publication preparation (2026-10-18)
+## Current change: verified main publication (2026-10-18)
 
 - The user explicitly authorized committing the integrated project and pushing
-  to `origin/main`. Fetched `main` and `phase-5`; remote main is an ancestor of
-  the current branch, so publication can fast-forward without rewriting history.
+  to `origin/main`. Committed the integrated snapshot as `b572365`, fast-forwarded
+  local main, and pushed it normally. `git ls-remote` confirmed remote main at
+  `b57236558302dfdd0c5c22f9d6cf9bb54df32a81`; local main matched that hash.
 - Publication includes the implementation, tests, prompts, dependency locks,
   CI definition, audits, and project documentation. The unrelated local synopsis
   PDF, `.env`, session data, virtual environment, and temporary fixtures are
@@ -126,8 +127,8 @@ not autonomously invoke tools. See [README.md](README.md) and
   inventory still match their tested hashes. Publication changes only the
   handoff/change log; the 181-case validation remains applicable. Staged content
   and whitespace checks passed, with no high-confidence credential matches.
-  Git's push
-  result and remote-ref comparison determine publication success.
+  Tracked files were clean after the source push; only the excluded local
+  synopsis PDF remained untracked. Remote CI results have not been checked.
 
 ## UI controls notes
 

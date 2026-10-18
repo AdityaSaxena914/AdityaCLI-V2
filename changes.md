@@ -5,13 +5,16 @@ remaining limitations. New entries go first. It begins on 17 October 2026;
 earlier history below is reconstructed from existing project records and is
 not a complete commit history. Audit recommendations are not implementation.
 
-## 2026-10-18 - Main publication preparation
+## 2026-10-18 - Verified main publication
 
 - Prepared the integrated project snapshot for the user-authorized commit and
   push to `origin/main`, including the previously uncommitted streaming work,
   audits, remediation, tests, prompts, dependency locks, and documentation.
 - Fetched the destination refs and verified that remote main is an ancestor of
-  the current branch. A normal fast-forward push can preserve existing history.
+  the current branch. Committed the snapshot as `b572365`, fast-forwarded local
+  main, and pushed normally without rewriting history. A subsequent
+  `git ls-remote` confirmed main at
+  `b57236558302dfdd0c5c22f9d6cf9bb54df32a81`, matching local HEAD.
 - Excluded the unrelated local synopsis PDF, `.env`, sessions, virtual environment,
   caches, and temporary fixtures; retained historical audit/verification evidence.
 - Updated `AGENTS.md` and this log to describe the publication scope and remove
@@ -19,8 +22,9 @@ not a complete commit history. Audit recommendations are not implementation.
 - Verification: 67 inventoried runtime/test/build files match their tested hashes;
   the prior 181-case results remain applicable. Reviewed 71 staged regular files
   and three deletions; staged whitespace passed and no high-confidence credential
-  patterns were found. Publication success is established by
-  Git's result and a subsequent remote-ref comparison, not preclaimed here.
+  patterns were found. After the source push, tracked files were clean and only
+  the excluded synopsis PDF remained untracked. Recorded this confirmed outcome
+  in `AGENTS.md` and this log as a separate documentation-only update.
 - Limitations remain those recorded in the remediation entry below. No fresh
   live inference, dependency scan, or GitHub/Linux CI result is implied.
 
