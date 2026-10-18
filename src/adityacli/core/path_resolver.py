@@ -1,57 +1,27 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 from adityacli.config import AppConfig
-
-
-_IGNORE_DIRS = {
-    ".git",
-    ".venv",
-    "__pycache__",
-    ".pytest_cache",
-    "build",
-    "dist",
-    ".sessions",
-}
+from adityacli.core.workspace_guard import WorkspaceGuard
 
 
 class PathResolver:
-    """
-    Deterministic filename resolution against the workspace.
-
-    Single source of truth for "given a bare name or fragment, which
-    files could this refer to". Used by SearchTool (for display) and
-    ReadTool (for resolution before reading), so the two never drift.
-    """
+    """Shared, pruned filename lookup with bounded optional results."""
 
     def __init__(self, config: AppConfig) -> None:
-        self._workspace: Path = config.workspace.root.resolve()
+        self._guard = WorkspaceGuard(config)
 
     @property
     def workspace(self) -> Path:
-        return self._workspace
+        return self._guard.workspace
 
-    def find_by_name(self, query: str) -> list[Path]:
-        """
-        Return absolute paths whose filename or stem matches ``query``
-        case-insensitively. Empty list if nothing matches.
-        """
-
+    def find_by_name(self, query: str, limit: int | None = None) -> list[Path]:
+        # Validate before walking: traversal must not become a name search.
+        self._guard.resolve(query)
         query_lower = query.lower()
-        matches: list[Path] = []
-
-        for path in self._workspace.rglob("*"):
-            if any(part in _IGNORE_DIRS for part in path.parts):
-                continue
-
-            if not path.is_file():
-                continue
-
-            stem = path.stem.lower()
-            name = path.name.lower()
-
-            if query_lower == stem or query_lower == name:
+        matches = []
+        for path in self._guard.iter_files(max_size=True):
+            if query_lower in (path.stem.lower(), path.name.lower()):
                 matches.append(path)
-
+                if limit is not None and len(matches) >= limit:
+                    break
         return matches

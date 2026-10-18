@@ -1,0 +1,287 @@
+[
+  {
+    "path": "src/adityacli/cli.py",
+    "lines": 355,
+    "sha256": "ab400905003a0ab6bb54fa83af44c680813e875dad590e11dccd58fdc1e5497d"
+  },
+  {
+    "path": "src/adityacli/config.py",
+    "lines": 51,
+    "sha256": "efa1c95e6fc481beed8e5a393fc1ded674b48cc7f4f9f0e191006d32555a7190"
+  },
+  {
+    "path": "src/adityacli/core/context_manager.py",
+    "lines": 32,
+    "sha256": "a9e1dc265d6a1ddd2f667ec433982326b8c02bfd4a4b881cc0e6079190a20f20"
+  },
+  {
+    "path": "src/adityacli/core/file_manager.py",
+    "lines": 51,
+    "sha256": "6cdec8390ef6b5e9f1c997d513cb8ab3a3af5e4eba89b679f223d24fa5650ab4"
+  },
+  {
+    "path": "src/adityacli/core/models.py",
+    "lines": 151,
+    "sha256": "e04e88176e2792e2371045177a2dca9e36859b4108606e9e20b188d4f92ee49f"
+  },
+  {
+    "path": "src/adityacli/core/parser.py",
+    "lines": 110,
+    "sha256": "e4057ce8cdbe16ff9d745da788313b3b460118968d9770b1f93fbf58b89aff1b"
+  },
+  {
+    "path": "src/adityacli/core/path_resolver.py",
+    "lines": 27,
+    "sha256": "247d8c9407f28c3bb6d362657ba8447b18ebb4872fefd3150ebfc02578ec06c7"
+  },
+  {
+    "path": "src/adityacli/core/prompt_builder.py",
+    "lines": 46,
+    "sha256": "5028ea74bae08b5f9d93adf5d3aad78396b19d8a1bcd255e71ab615f2684a0ae"
+  },
+  {
+    "path": "src/adityacli/core/response_parser.py",
+    "lines": 95,
+    "sha256": "c6781f507e6ec325de8c7250fca1cec9de741b656e7cb365ea870703c37bce77"
+  },
+  {
+    "path": "src/adityacli/core/runtime.py",
+    "lines": 199,
+    "sha256": "036f741ef1d5dd41a6f2ba2876b35512b1b781f1e5e81cfc86b776634406237a"
+  },
+  {
+    "path": "src/adityacli/core/session.py",
+    "lines": 122,
+    "sha256": "393201ba1412e1c5642cbb7facf0ee61ab19890578b37c58912931a45fc1bcb9"
+  },
+  {
+    "path": "src/adityacli/core/session_store.py",
+    "lines": 191,
+    "sha256": "29b3cbcb44b26967ff17cf1dfa9dfb040d1eedd37ad76b3cfa97ca9898368b93"
+  },
+  {
+    "path": "src/adityacli/core/token_counter.py",
+    "lines": 37,
+    "sha256": "ee50e3a6dd3884c8dab21ae88a546aeca52188d35dcb78f7b5966dc130c94ba6"
+  },
+  {
+    "path": "src/adityacli/core/workspace_guard.py",
+    "lines": 132,
+    "sha256": "378af03f9c77a5a8cf49039e16cb855dba6461935da449ba9109a459a33f4431"
+  },
+  {
+    "path": "src/adityacli/error_handler.py",
+    "lines": 53,
+    "sha256": "5ba26b8a3a184cf73870a125adcc35f1002fb1053a76e39389a2c5e66b0111cb"
+  },
+  {
+    "path": "src/adityacli/exceptions.py",
+    "lines": 74,
+    "sha256": "3d96e831d32f35eb3e8670ef9f67857de80c749a49eed84afc4e9cc4c615ad8f"
+  },
+  {
+    "path": "src/adityacli/llm/client.py",
+    "lines": 238,
+    "sha256": "1958102a6f8366f664d808a00200dcacff73cfd41a6856e02758b24512e11c3e"
+  },
+  {
+    "path": "src/adityacli/llm/models.py",
+    "lines": 18,
+    "sha256": "0712c54e1082679d52a0dff57e9a4366fd5d69616b479dbe5601eb6777a83fd4"
+  },
+  {
+    "path": "src/adityacli/main.py",
+    "lines": 107,
+    "sha256": "0bac0ae6a50f84ca17f111c4292477e21d8df9f43ee9d22a092d7644136cb27d"
+  },
+  {
+    "path": "src/adityacli/prompts/__init__.py",
+    "lines": 11,
+    "sha256": "4f03f1d6e6c4bcd7a6f4a9ac6b092c1c6e2230b3f5952e8fae83c2720dbb791a"
+  },
+  {
+    "path": "src/adityacli/prompts/edit.txt",
+    "lines": 5,
+    "sha256": "bcc249550872ffe6342c62fc31c9fb65638b37bf788bbd7f6c74fb334fb8e803"
+  },
+  {
+    "path": "src/adityacli/prompts/read.txt",
+    "lines": 3,
+    "sha256": "2f52f0dcbbe589b55bb368d0d86bde918421c2d43ffb2839727afba0e66d7cf6"
+  },
+  {
+    "path": "src/adityacli/prompts/system.txt",
+    "lines": 6,
+    "sha256": "37e95bc8e5b8e63126441488d7caeb707faa5f8d5c3f42c9b284ed9c376cf048"
+  },
+  {
+    "path": "src/adityacli/prompts/web.txt",
+    "lines": 3,
+    "sha256": "3abeb04e2e91e7e6b0e8c601e98fed58a3fe600c833fb908dc903ba63e4ec7ae"
+  },
+  {
+    "path": "src/adityacli/prompts/write.txt",
+    "lines": 5,
+    "sha256": "85acfe9fc067bdc293d47450d2845b83b9a1fee18c7618a91be22022d17601d2"
+  },
+  {
+    "path": "src/adityacli/providers/base.py",
+    "lines": 15,
+    "sha256": "0634a3a276a2e6787049a7600d711579d43d838fbabbb6db9e999c913a6a8b48"
+  },
+  {
+    "path": "src/adityacli/providers/duckduckgo.py",
+    "lines": 44,
+    "sha256": "11fa9a9315a92907835d8c0df2b4b8b0484952191e326c64e721d8bf7c124884"
+  },
+  {
+    "path": "src/adityacli/services/__init__.py",
+    "lines": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "src/adityacli/services/chat_service.py",
+    "lines": 192,
+    "sha256": "dd9b0bf1432358f8b6148510a16caa617d90905a1e81f5512442e582e346607a"
+  },
+  {
+    "path": "src/adityacli/services/command_service.py",
+    "lines": 53,
+    "sha256": "d07b9fdb8f27f1b7e977ff35f2ceaa419e0e6e4b8ed8a40c0530263ad36e49e1"
+  },
+  {
+    "path": "src/adityacli/services/llm_service.py",
+    "lines": 112,
+    "sha256": "e6fb718a56a5a5aa9dc67a618fda8dea24ee5e1c78d251df4b52e559335653a7"
+  },
+  {
+    "path": "src/adityacli/services/overwrite_service.py",
+    "lines": 85,
+    "sha256": "1f21dc57d3b70fce909a6233fee67cba2e6130669df87f7a88af7456542f5070"
+  },
+  {
+    "path": "src/adityacli/tools/base.py",
+    "lines": 26,
+    "sha256": "9fd0726ae6b93e05580c5e7faaa492fa109c7a8ad4a9fe9d346368d5d0d237b7"
+  },
+  {
+    "path": "src/adityacli/tools/edit.py",
+    "lines": 49,
+    "sha256": "17095d29655cae46573a67a589036e6605a5a72bbc7d2c0e9aa345b0269f5d9b"
+  },
+  {
+    "path": "src/adityacli/tools/git.py",
+    "lines": 286,
+    "sha256": "388a7e362180013100a51c4263cfd13b7933ad0ba843d20268f8f47be8b0ff3c"
+  },
+  {
+    "path": "src/adityacli/tools/read.py",
+    "lines": 51,
+    "sha256": "c6d4bd563e1175d5dbb9e98ec6f4f8f73bc4cbb3424a382db1b2ca67fe761b73"
+  },
+  {
+    "path": "src/adityacli/tools/registry.py",
+    "lines": 74,
+    "sha256": "257644fb183ad5c5dfea6aefa3c97168c99e00f7ec3add765f96196d661dceab"
+  },
+  {
+    "path": "src/adityacli/tools/search.py",
+    "lines": 122,
+    "sha256": "ced8aa0f2b7f78dc65cd1b7be7ba95deb8327d84c01dd5583cd320ceee9ef91f"
+  },
+  {
+    "path": "src/adityacli/tools/web.py",
+    "lines": 94,
+    "sha256": "61dd957d501cc93a95cdf886843f5ae53fde730b1da6569ec63e569d192ca8a0"
+  },
+  {
+    "path": "src/adityacli/tools/write.py",
+    "lines": 54,
+    "sha256": "acdf007abd7adbfcb5bb6a1a3b19c9711da4e6d440b7a27b10b2d3b23fc4e59a"
+  },
+  {
+    "path": "src/adityacli/ui/__init__.py",
+    "lines": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "src/adityacli/ui/conversation.py",
+    "lines": 25,
+    "sha256": "d8fe6ae30ebe20f67e3faa81eefbc776fe2601174c7aa41f8e112971d894b0aa"
+  },
+  {
+    "path": "src/adityacli/ui/diff.py",
+    "lines": 26,
+    "sha256": "d63a3d13dbf394e1679fbabc467ad92c37b57d3297e44772822fe4f4527f088f"
+  },
+  {
+    "path": "src/adityacli/ui/screens.py",
+    "lines": 169,
+    "sha256": "d6103bb78a948ee73a1042b28a68070088285a517f455ae3753ff8d5215c3143"
+  },
+  {
+    "path": "tests/__init__.py",
+    "lines": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "tests/test_audit_regressions.py",
+    "lines": 255,
+    "sha256": "0058230f7f47187b20c03d95bcb5b66e45cfc4cec65a06547ff61c2acf29c528"
+  },
+  {
+    "path": "tests/test_file_manager.py",
+    "lines": 141,
+    "sha256": "8a4cf70f810734bfbd9bd2f965448f55d57c7108e2195c5fdfbd135d1cfd4533"
+  },
+  {
+    "path": "tests/test_memory_and_tools.py",
+    "lines": 311,
+    "sha256": "5eae2d5bde9956d56576ac315e689e6bcf22ea90ae31a41cc365dc13ad7aa70b"
+  },
+  {
+    "path": "tests/test_models.py",
+    "lines": 176,
+    "sha256": "45390c7e00b2cd0d4c1f558b3a1e558e625bb46843efe976ee0bb75a58c7c00e"
+  },
+  {
+    "path": "tests/test_parser.py",
+    "lines": 116,
+    "sha256": "629f8f00a9d53812ebd6aa37227443da1ec1cb67cbb6e26f4e76894f216b0442"
+  },
+  {
+    "path": "tests/test_registry.py",
+    "lines": 78,
+    "sha256": "9079c445bc5914eebcf0f63990dec8d718c60466b2384acfdbf4d3c0a3a621f1"
+  },
+  {
+    "path": "tests/test_response_parser.py",
+    "lines": 52,
+    "sha256": "87cf30ffa13d54c0c22b9f13c01bad34870108c41c719e30290a8766a6454d65"
+  },
+  {
+    "path": "tests/test_runtime.py",
+    "lines": 128,
+    "sha256": "d6a9c2dab5f3a49386ddc17b4b89e4086b77ed71477f06fd6c9cb7c4dc11d2f5"
+  },
+  {
+    "path": "tests/test_streaming.py",
+    "lines": 273,
+    "sha256": "d50e71919b6f7007999e52594d41ad6e7adefbbeb480aa1528dbcce1cbabbdac"
+  },
+  {
+    "path": "tests/test_tui.py",
+    "lines": 297,
+    "sha256": "163cf5bfb9acde8a3d413234d5bd14faaa7e203eb840d9b464f7d88eb7a815c0"
+  },
+  {
+    "path": "tests/test_ui_controls.py",
+    "lines": 244,
+    "sha256": "6b7bad5222ae592ebd053cfb39834c643708970643cd2f9be5bed190f4325c7d"
+  },
+  {
+    "path": "scripts/audit_smoke.py",
+    "lines": 234,
+    "sha256": "c6d38cf4b3e2154897dbb1954d5b473c2e07d1f7941adf46393000f0c80a08d4"
+  }
+]

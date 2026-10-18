@@ -13,8 +13,8 @@ def build_diff(
 
     diff = list(
         unified_diff(
-            original.splitlines(),
-            updated.splitlines(),
+            original.splitlines(keepends=True),
+            updated.splitlines(keepends=True),
             lineterm="",
         )
     )
@@ -23,4 +23,10 @@ def build_diff(
     if len(diff) >= 2:
         diff = diff[2:]
 
-    return "\n".join(diff)
+    lines = []
+    for line in diff:
+        if line.startswith(("+", "-", " ")) and not line.endswith(("\n", "\r")):
+            lines.extend((line, "\\ No newline at end of file"))
+        else:
+            lines.append(line.rstrip("\r\n"))
+    return "\n".join(lines)

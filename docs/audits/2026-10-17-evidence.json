@@ -1,0 +1,338 @@
+{
+  "manifest": {
+    "file_count": 57,
+    "production_files": 44,
+    "lines": 5904
+  },
+  "git_filter_bypass": [
+    {
+      "separator": "' '",
+      "outcome": "ValidationError: Git includes, filters and custom merge drivers are disabled in workspace mode.",
+      "marker_created": false
+    },
+    {
+      "separator": "'\\t'",
+      "outcome": "accepted",
+      "marker_created": true
+    }
+  ],
+  "session_staging": {
+    "session_staged": false,
+    "staged_paths": [
+      ".gitignore"
+    ]
+  },
+  "regex_timeout": {
+    "timed_out": true,
+    "deadline_seconds": 2,
+    "input_characters": 37
+  },
+  "session_append_race": {
+    "writer_b_lost": true,
+    "loaded": [
+      "WRITER_A"
+    ],
+    "error": null
+  },
+  "memory_commit_order": {
+    "in_memory_messages": 1,
+    "on_disk_messages": 0
+  },
+  "clear_failure": {
+    "memory_preserved": true,
+    "old_storage_exists": false
+  },
+  "stale_confirmation": {
+    "concurrent_change_overwritten": true
+  },
+  "git_deadline": {
+    "process_calls": [
+      {
+        "timeout": null,
+        "shell": false
+      },
+      {
+        "timeout": null,
+        "shell": false
+      }
+    ],
+    "application_deadline_present_in_source": false
+  },
+  "syntax_validation": [
+    {
+      "source": "return 1",
+      "parser_accepted": true,
+      "compiler_error": "'return' outside function (example.py, line 1)"
+    },
+    {
+      "source": "break",
+      "parser_accepted": true,
+      "compiler_error": "'break' outside loop (example.py, line 1)"
+    },
+    {
+      "source": "await work()",
+      "parser_accepted": true,
+      "compiler_error": "'await' outside function (example.py, line 1)"
+    },
+    {
+      "source": "nonlocal missing",
+      "parser_accepted": true,
+      "compiler_error": "nonlocal declaration not allowed at module level (example.py, line 1)"
+    }
+  ],
+  "oversized_proposal": {
+    "oversized_proposal_reached_review": true,
+    "confirmation_error": "FileTooLargeError",
+    "file_written": false
+  },
+  "newline_diff": {
+    "different_final_newline_produces_empty_diff": true
+  },
+  "dependency_advisories": {
+    "queried_distributions": 32,
+    "raw_advisory_ids": 14,
+    "unique_cves": 7,
+    "not_applicable_in_this_environment": 2,
+    "conditional_tooling_exposures": 5,
+    "installed_distributions": [
+      [
+        "Pygments",
+        "2.21.0"
+      ],
+      [
+        "annotated-types",
+        "0.8.0"
+      ],
+      [
+        "anyio",
+        "4.15.1"
+      ],
+      [
+        "click",
+        "8.5.0"
+      ],
+      [
+        "colorama",
+        "0.4.6"
+      ],
+      [
+        "ddgs",
+        "9.16.0"
+      ],
+      [
+        "h11",
+        "0.16.0"
+      ],
+      [
+        "httpcore2",
+        "2.13.1"
+      ],
+      [
+        "httpx2",
+        "2.13.1"
+      ],
+      [
+        "idna",
+        "3.20"
+      ],
+      [
+        "iniconfig",
+        "2.3.0"
+      ],
+      [
+        "jiter",
+        "0.17.0"
+      ],
+      [
+        "linkify-it-py",
+        "2.2.0"
+      ],
+      [
+        "lxml",
+        "6.1.3"
+      ],
+      [
+        "markdown-it-py",
+        "4.2.0"
+      ],
+      [
+        "mdit-py-plugins",
+        "0.6.1"
+      ],
+      [
+        "mdurl",
+        "0.1.2"
+      ],
+      [
+        "openai",
+        "3.22.1"
+      ],
+      [
+        "packaging",
+        "26.3"
+      ],
+      [
+        "pip",
+        "25.0.1"
+      ],
+      [
+        "platformdirs",
+        "4.12.2"
+      ],
+      [
+        "pluggy",
+        "1.6.0"
+      ],
+      [
+        "primp",
+        "2.0.1"
+      ],
+      [
+        "pydantic",
+        "2.13.5"
+      ],
+      [
+        "pydantic_core",
+        "2.46.5"
+      ],
+      [
+        "pytest",
+        "8.4.2"
+      ],
+      [
+        "rich",
+        "15.0.0"
+      ],
+      [
+        "sniffio",
+        "1.3.1"
+      ],
+      [
+        "textual",
+        "8.2.8"
+      ],
+      [
+        "truststore",
+        "0.10.4"
+      ],
+      [
+        "typing-inspection",
+        "0.4.4"
+      ],
+      [
+        "typing_extensions",
+        "4.16.0"
+      ]
+    ],
+    "findings": [
+      {
+        "id": "GHSA-4xh5-x5gv-qwph",
+        "cve": "CVE-2025-8869",
+        "summary": "pip's fallback tar extraction doesn't check symbolic links point to extraction directory",
+        "assessment": "not applicable to the audited Python 3.12 extraction-filter path",
+        "withdrawn": null,
+        "fixed_versions": [
+          "25.3"
+        ],
+        "source": "https://osv.dev/vulnerability/GHSA-4xh5-x5gv-qwph"
+      },
+      {
+        "id": "GHSA-58qw-9mgm-455v",
+        "cve": "CVE-2026-3219",
+        "summary": "pip has an interpretation conflict due to handling both concatenated tar and ZIP files as ZIP files",
+        "assessment": "conditional installation/download tooling exposure; not an assistant runtime exploit",
+        "withdrawn": null,
+        "fixed_versions": [
+          "26.1"
+        ],
+        "source": "https://osv.dev/vulnerability/GHSA-58qw-9mgm-455v"
+      },
+      {
+        "id": "GHSA-6vgw-5pg2-w6jp",
+        "cve": "CVE-2026-1703",
+        "summary": "pip Path Traversal vulnerability",
+        "assessment": "conditional installation/download tooling exposure; not an assistant runtime exploit",
+        "withdrawn": null,
+        "fixed_versions": [
+          "26.0"
+        ],
+        "source": "https://osv.dev/vulnerability/GHSA-6vgw-5pg2-w6jp"
+      },
+      {
+        "id": "GHSA-6w46-j5rx-g56g",
+        "cve": "CVE-2025-71176",
+        "summary": "pytest has vulnerable tmpdir handling",
+        "assessment": "not applicable to the audited Windows environment; affects UNIX temporary directories",
+        "withdrawn": null,
+        "fixed_versions": [
+          "9.0.3"
+        ],
+        "source": "https://osv.dev/vulnerability/GHSA-6w46-j5rx-g56g"
+      },
+      {
+        "id": "GHSA-jp4c-xjxw-mgf9",
+        "cve": "CVE-2026-6357",
+        "summary": "pip Vulnerable to Inclusion of Functionality from Untrusted Control Sphere",
+        "assessment": "conditional installation/download tooling exposure; not an assistant runtime exploit",
+        "withdrawn": null,
+        "fixed_versions": [
+          "26.1"
+        ],
+        "source": "https://osv.dev/vulnerability/GHSA-jp4c-xjxw-mgf9"
+      },
+      {
+        "id": "GHSA-qwm4-qh6w-59xr",
+        "cve": "CVE-2026-13346",
+        "summary": "pip would incorrectly handle doubly-encoded package URLs from indexes",
+        "assessment": "conditional installation/download tooling exposure; not an assistant runtime exploit",
+        "withdrawn": null,
+        "fixed_versions": [
+          "26.2.0"
+        ],
+        "source": "https://osv.dev/vulnerability/GHSA-qwm4-qh6w-59xr"
+      },
+      {
+        "id": "GHSA-wf93-45jw-7689",
+        "cve": "CVE-2026-8643",
+        "summary": " pip: Path traversal in console_scripts/gui_scripts\u00a0entry point names allows installing scripts outside of target directory",
+        "assessment": "conditional installation/download tooling exposure; not an assistant runtime exploit",
+        "withdrawn": null,
+        "fixed_versions": [
+          "26.1.2"
+        ],
+        "source": "https://osv.dev/vulnerability/GHSA-wf93-45jw-7689"
+      }
+    ]
+  },
+  "audit_date": "2026-10-17",
+  "finding_counts": {
+    "application_security": 2,
+    "reliability_correctness": 8,
+    "application_security_fixes_applied": 0
+  },
+  "existing_suite": {
+    "initial_passed": 134,
+    "initial_fixture_setup_failures": 3,
+    "targeted_rerun_passed": 3,
+    "total_existing_tests_passed_across_runs": 137,
+    "initial_duration_seconds": 22.33,
+    "rerun_duration_seconds": 3.15,
+    "pip_check": "passed",
+    "live_inference": "not run"
+  },
+  "source_integrity": {
+    "inventoried_files_unchanged": 57,
+    "python_files_compiled": 52
+  },
+  "documentation_validation": {
+    "markdown_files_checked": 3,
+    "relative_links_resolved": 14,
+    "fences_balanced": true,
+    "trailing_whitespace": false
+  },
+  "git_diff_check": {
+    "returncode": 0,
+    "normal_repository_line_endings": true,
+    "line_ending_warning_count": 30
+  }
+}

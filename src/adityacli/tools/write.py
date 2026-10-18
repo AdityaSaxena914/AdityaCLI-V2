@@ -13,7 +13,7 @@ from adityacli.core.workspace_guard import WorkspaceGuard
 
 
 class WriteTool(BaseTool):
-    """Generate one or more new files."""
+    """Prepare a request to generate one file."""
 
     def __init__(self, config: AppConfig) -> None:
         self._config: AppConfig = config
@@ -30,10 +30,10 @@ class WriteTool(BaseTool):
 
         for relative_path in command.arguments:
             _=self._guard.new_file(relative_path)
-            paths.append(relative_path)
+            paths.append(self._guard.relative_path(relative_path))
 
         sections = [
-            load_prompt("write"),
+            f"Save path (metadata, not output): {paths[0]}",
         ]
 
         if command.prompt:
@@ -49,5 +49,6 @@ class WriteTool(BaseTool):
             prompt="\n".join(sections),
             metadata=ToolMetadata(
                 files_written=tuple(paths),
+                extra={"instructions": load_prompt("write")},
             ),
         )

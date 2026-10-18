@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from adityacli.core.models import (
@@ -10,9 +11,10 @@ from adityacli.core.models import (
     PendingSelectionRequest,
     RuntimeResult,
     ToolResult,
+    Tool,
 )
 from adityacli.core.session import Session
-from adityacli.exceptions import AmbiguousPathError
+from adityacli.exceptions import AmbiguousPathError, ValidationError
 from adityacli.services.command_service import CommandService
 from adityacli.services.llm_service import LLMService
 from adityacli.services.overwrite_service import OverwriteService
@@ -42,8 +44,16 @@ class ChatService:
         *,
         session: Session,
         text: str,
+        on_chunk: Callable[[str], None] | None = None,
     ) -> ChatServiceResult:
         command = self._commands.parse(text)
+
+        if command is not None and command.tool is Tool.REMEMBER:
+            messages, files = session.restore_memory()
+            return ChatServiceResult(
+                ChatResponse(f"Restored {messages} messages and {files} files from memory.jsonl. "
+                             "They will be included with your next request."), None,
+            )
 
         if command is None:
             session.add_user(text)
@@ -51,6 +61,7 @@ class ChatService:
                 session=session,
                 command=None,
                 tool_result=None,
+                on_chunk=on_chunk,
             )
 
         try:
@@ -70,6 +81,7 @@ class ChatService:
             command=command,
             tool_result=tool_result,
             text=text,
+            on_chunk=on_chunk,
         )
 
     def resolve_selection(
@@ -78,27 +90,28 @@ class ChatService:
         session: Session,
         request: PendingSelectionRequest,
         index: int,
+        on_chunk: Callable[[str], None] | None = None,
     ) -> ChatServiceResult:
         """
         Re-run a /read whose argument was disambiguated by the user.
         The CLI only supplies the chosen index; resolution stays here.
         """
 
+        if index < 0 or index >= len(request.candidates):
+            raise ValidationError("Invalid file selection.")
         selected_path = request.candidates[index]
 
         resolved_command: Command = replace(
             request.original_command,
-            arguments=[selected_path],
+            arguments=[selected_path if argument == request.query else argument
+                       for argument in request.original_command.arguments],
         )
-
-        tool_result = self._commands.execute(resolved_command)
-
-        return self._run_tool_result(
-            session=session,
-            command=resolved_command,
-            tool_result=tool_result,
-            text=f"/read {{{selected_path}}}",
-        )
+        # Go through the same ambiguity handling again if another argument
+        # also needs selection. Quote paths so this command can be replayed.
+        text = "/read {" + " ".join('"' + path + '"' for path in resolved_command.arguments) + "}"
+        if resolved_command.prompt:
+            text += "\n" + resolved_command.prompt
+        return self.chat(session=session, text=text, on_chunk=on_chunk)
 
     def _run_tool_result(
         self,
@@ -107,8 +120,9 @@ class ChatService:
         command: Command,
         tool_result: ToolResult,
         text: str,
+        on_chunk: Callable[[str], None] | None,
     ) -> ChatServiceResult:
-        session.add_user(text)
+        session.add_user(text, context=tool_result.requires_llm)
 
         for path, content in tool_result.metadata.files_read:
             session.remember_file(path, content)
@@ -116,7 +130,7 @@ class ChatService:
         if not tool_result.requires_llm:
             # Deterministic display output (plain /read, /search, /git)
             # is shown to the user, but the raw dump never enters the
-            # persisted transcript (chat.jsonl) -- that would silently
+            # persisted model context -- that would silently
             # refill the context window on every later turn. Read
             # files are still available to follow-up questions via
             # session.read_files, a separately bounded cache injected
@@ -130,6 +144,7 @@ class ChatService:
             session=session,
             command=command,
             tool_result=tool_result,
+            on_chunk=on_chunk,
         )
 
     def _generate(
@@ -138,16 +153,19 @@ class ChatService:
         session: Session,
         command: Command | None,
         tool_result: ToolResult | None,
+        on_chunk: Callable[[str], None] | None,
     ) -> ChatServiceResult:
+        expected_contents = self._overwrite.snapshot(command, tool_result)
         llm_response = self._llm.generate(
             session=session,
             tool_result=tool_result,
+            on_chunk=on_chunk,
         )
 
         response = llm_response.content
 
         if command is not None:
-            request = self._overwrite.create_request(command, response)
+            request = self._overwrite.create_request(command, response, expected_contents)
 
             if request is not None:
                 return ChatServiceResult(

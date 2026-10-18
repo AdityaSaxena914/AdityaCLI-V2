@@ -1,0 +1,409 @@
+{
+  "verified_at_utc": "2026-10-17T19:03:49.215075+00:00",
+  "platform": "Windows",
+  "python": "3.12.10",
+  "tests": {
+    "total_passed_across_final_runs": 181,
+    "existing_cases": 137,
+    "new_cases": 44,
+    "runs": [
+      {
+        "evidence": "temp/fixes-completion-20261018.xml",
+        "passed": 178,
+        "seconds": 27.685
+      },
+      {
+        "evidence": "temp/fixes-final-links-20261018.xml",
+        "passed": 3,
+        "seconds": 3.043
+      }
+    ],
+    "sandbox_limitation": "Three link fixtures require permissions outside the sandbox; final targeted rerun passed."
+  },
+  "compiled_without_execution": 58,
+  "markdown_files_checked": 9,
+  "local_links_checked": 76,
+  "whitespace_files_checked": 19,
+  "development_lock_resolved_wheels": 34,
+  "osv_packages_queried": 34,
+  "osv_matched_packages": 0,
+  "additional_checks": {
+    "pip_check": "passed",
+    "git_diff_check": "passed"
+  },
+  "historical_inventory_comparison": {
+    "unchanged_files": [
+      "src/adityacli/core/context_manager.py",
+      "src/adityacli/core/models.py",
+      "src/adityacli/core/parser.py",
+      "src/adityacli/core/path_resolver.py",
+      "src/adityacli/core/prompt_builder.py",
+      "src/adityacli/core/token_counter.py",
+      "src/adityacli/error_handler.py",
+      "src/adityacli/llm/models.py",
+      "src/adityacli/prompts/__init__.py",
+      "src/adityacli/prompts/edit.txt",
+      "src/adityacli/prompts/read.txt",
+      "src/adityacli/prompts/system.txt",
+      "src/adityacli/prompts/web.txt",
+      "src/adityacli/prompts/write.txt",
+      "src/adityacli/providers/base.py",
+      "src/adityacli/services/__init__.py",
+      "src/adityacli/services/chat_service.py",
+      "src/adityacli/services/command_service.py",
+      "src/adityacli/tools/base.py",
+      "src/adityacli/tools/edit.py",
+      "src/adityacli/tools/read.py",
+      "src/adityacli/tools/registry.py",
+      "src/adityacli/tools/write.py",
+      "src/adityacli/ui/__init__.py",
+      "src/adityacli/ui/conversation.py",
+      "src/adityacli/ui/screens.py",
+      "tests/__init__.py",
+      "tests/test_audit_regressions.py",
+      "tests/test_file_manager.py",
+      "tests/test_memory_and_tools.py",
+      "tests/test_models.py",
+      "tests/test_parser.py",
+      "tests/test_registry.py",
+      "tests/test_response_parser.py",
+      "tests/test_runtime.py",
+      "tests/test_streaming.py",
+      "tests/test_tui.py",
+      "scripts/audit_smoke.py"
+    ],
+    "changed_files": [
+      "src/adityacli/cli.py",
+      "src/adityacli/config.py",
+      "src/adityacli/core/file_manager.py",
+      "src/adityacli/core/response_parser.py",
+      "src/adityacli/core/runtime.py",
+      "src/adityacli/core/session.py",
+      "src/adityacli/core/session_store.py",
+      "src/adityacli/core/workspace_guard.py",
+      "src/adityacli/exceptions.py",
+      "src/adityacli/llm/client.py",
+      "src/adityacli/main.py",
+      "src/adityacli/providers/duckduckgo.py",
+      "src/adityacli/services/llm_service.py",
+      "src/adityacli/services/overwrite_service.py",
+      "src/adityacli/tools/git.py",
+      "src/adityacli/tools/search.py",
+      "src/adityacli/tools/web.py",
+      "src/adityacli/ui/diff.py",
+      "tests/test_ui_controls.py"
+    ]
+  },
+  "source_and_document_hashes": [
+    {
+      "path": ".github/workflows/tests.yml",
+      "sha256": "7ef57a45855ab1cd293c34f734e3cb84dd0d701973f3983de5907a706cf9fded"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "a9cf3d70094fec585cace4324f4ce5d2dfc0e94198056d8dc55a210e97ea62d2"
+    },
+    {
+      "path": "changes.md",
+      "sha256": "adef01002f230679d8f546487dea27ff19fbd81854525c0ae1c8437a1ea05323"
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "b46807c09a61262b3d9239442f31755bb314044a965654617b89f34ca06b0fba"
+    },
+    {
+      "path": "docs/audits/2026-10-17.md",
+      "sha256": "20712a4cf81a86ba2acc487db51ce21319993bc760670a10604ae4cceaec8df1"
+    },
+    {
+      "path": "docs/audits/2026-10-18-fixes.md",
+      "sha256": "2867f0cb5298b4fa18271d7491cb9ffa96a93cc5ec760aeba4af0e8171d6d14e"
+    },
+    {
+      "path": "docs/development.md",
+      "sha256": "189b920843cbda63e00478476a24c0c518aaa01da95f97337c625f889587f52e"
+    },
+    {
+      "path": "docs/sessions.md",
+      "sha256": "793de3bbb05c2289cf7e93488f7be772289d0ba75ebf1833796233c48c608acb"
+    },
+    {
+      "path": "docs/tools.md",
+      "sha256": "85789aadf17b9a80a85ddba24bbef818664e8deda9e5b8b3a14bcd418c7d4718"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "2d98942fc8cd968470267c844bc0dc994badb8cfdf4a1802c18870386c54a944"
+    },
+    {
+      "path": "README.md",
+      "sha256": "0519288cec686decb7e3278e098d4fcc440929cdfd3e4a3a0dc0b617e5a3c8d3"
+    },
+    {
+      "path": "requirements/dev.lock",
+      "sha256": "8fe70ed1596d3b6bf1554c9398b415b806b886bda3039faba3ecfe07b6608ebf"
+    },
+    {
+      "path": "requirements/runtime.lock",
+      "sha256": "e17243094cbacd1fc9147dc72bf719013d4cad1565f8069076aface31e018d92"
+    },
+    {
+      "path": "scripts/audit_smoke.py",
+      "sha256": "c6d38cf4b3e2154897dbb1954d5b473c2e07d1f7941adf46393000f0c80a08d4"
+    },
+    {
+      "path": "scripts/dependency_audit.py",
+      "sha256": "c2a5d9fb19906d0ceee4ded9cd9573727957060f6be0320bb6c98f725f7194f0"
+    },
+    {
+      "path": "src/adityacli/cli.py",
+      "sha256": "5398265864cf2d685dbac6bf06460372cf27b06c4dc5f91ed9ac8536b9084c6b"
+    },
+    {
+      "path": "src/adityacli/config.py",
+      "sha256": "6e12a3e9e5b5b563cf5281ece45c6d6689ecf7d258528fe410cc79e14ef1e5b1"
+    },
+    {
+      "path": "src/adityacli/core/context_manager.py",
+      "sha256": "a9e1dc265d6a1ddd2f667ec433982326b8c02bfd4a4b881cc0e6079190a20f20"
+    },
+    {
+      "path": "src/adityacli/core/file_manager.py",
+      "sha256": "fec5c9ad0f0b2c515da1f8d99380756f2df613c0ac941daec7e0b9fd6abb50b3"
+    },
+    {
+      "path": "src/adityacli/core/locking.py",
+      "sha256": "30a2b2975e46cfbec8ced77a7a76b3c53a4baf94b4d98042171fee2166d4df60"
+    },
+    {
+      "path": "src/adityacli/core/models.py",
+      "sha256": "e04e88176e2792e2371045177a2dca9e36859b4108606e9e20b188d4f92ee49f"
+    },
+    {
+      "path": "src/adityacli/core/operations.py",
+      "sha256": "bdc7fcb0f2da81d9d2b48ac6abe0184a3e8cfbde74cc516742413d020f46d8bc"
+    },
+    {
+      "path": "src/adityacli/core/parser.py",
+      "sha256": "e4057ce8cdbe16ff9d745da788313b3b460118968d9770b1f93fbf58b89aff1b"
+    },
+    {
+      "path": "src/adityacli/core/path_resolver.py",
+      "sha256": "247d8c9407f28c3bb6d362657ba8447b18ebb4872fefd3150ebfc02578ec06c7"
+    },
+    {
+      "path": "src/adityacli/core/processes.py",
+      "sha256": "1ec8654c69fc0f60b689da7c4e477634948c31821f8fe3d088a04120aa8b1e2d"
+    },
+    {
+      "path": "src/adityacli/core/prompt_builder.py",
+      "sha256": "5028ea74bae08b5f9d93adf5d3aad78396b19d8a1bcd255e71ab615f2684a0ae"
+    },
+    {
+      "path": "src/adityacli/core/response_parser.py",
+      "sha256": "716455413738f5243e4566f7e891fa2401224b3c8c31b27259089d831d3b7206"
+    },
+    {
+      "path": "src/adityacli/core/runtime.py",
+      "sha256": "858aac892f0794dd17f704880a2ce32e00b34bef4bcb5bb2bc2d3afbd707fba6"
+    },
+    {
+      "path": "src/adityacli/core/session.py",
+      "sha256": "611a4f8c78c3474dba4c6757ffa8ec5ea2c71ca7df5d987175c9acb6572c0158"
+    },
+    {
+      "path": "src/adityacli/core/session_store.py",
+      "sha256": "82691763d147ed7cbfe3cb84ceda35729404ca81213bfbcd5bc4e5fb8f68a39e"
+    },
+    {
+      "path": "src/adityacli/core/token_counter.py",
+      "sha256": "ee50e3a6dd3884c8dab21ae88a546aeca52188d35dcb78f7b5966dc130c94ba6"
+    },
+    {
+      "path": "src/adityacli/core/workspace_guard.py",
+      "sha256": "83adf7cfac20b677b256e555ce937934985d4147970b05be2346f48bce6e8ae2"
+    },
+    {
+      "path": "src/adityacli/error_handler.py",
+      "sha256": "5ba26b8a3a184cf73870a125adcc35f1002fb1053a76e39389a2c5e66b0111cb"
+    },
+    {
+      "path": "src/adityacli/exceptions.py",
+      "sha256": "79624d1daa0350b9a9fe98926c9d5f83bf266c8cf182ff822c5ca53018ceb7e2"
+    },
+    {
+      "path": "src/adityacli/llm/client.py",
+      "sha256": "848f75fdbc0cb830b27af579b3b475920082c67e05d5d33a4ecf9142662131e5"
+    },
+    {
+      "path": "src/adityacli/llm/models.py",
+      "sha256": "0712c54e1082679d52a0dff57e9a4366fd5d69616b479dbe5601eb6777a83fd4"
+    },
+    {
+      "path": "src/adityacli/main.py",
+      "sha256": "cdd5db02785140153e75c0f9420d72a30f95d123ab584ed6d09533fc75ba83a3"
+    },
+    {
+      "path": "src/adityacli/prompts/__init__.py",
+      "sha256": "4f03f1d6e6c4bcd7a6f4a9ac6b092c1c6e2230b3f5952e8fae83c2720dbb791a"
+    },
+    {
+      "path": "src/adityacli/prompts/edit.txt",
+      "sha256": "bcc249550872ffe6342c62fc31c9fb65638b37bf788bbd7f6c74fb334fb8e803"
+    },
+    {
+      "path": "src/adityacli/prompts/read.txt",
+      "sha256": "2f52f0dcbbe589b55bb368d0d86bde918421c2d43ffb2839727afba0e66d7cf6"
+    },
+    {
+      "path": "src/adityacli/prompts/system.txt",
+      "sha256": "37e95bc8e5b8e63126441488d7caeb707faa5f8d5c3f42c9b284ed9c376cf048"
+    },
+    {
+      "path": "src/adityacli/prompts/web.txt",
+      "sha256": "3abeb04e2e91e7e6b0e8c601e98fed58a3fe600c833fb908dc903ba63e4ec7ae"
+    },
+    {
+      "path": "src/adityacli/prompts/write.txt",
+      "sha256": "85acfe9fc067bdc293d47450d2845b83b9a1fee18c7618a91be22022d17601d2"
+    },
+    {
+      "path": "src/adityacli/providers/base.py",
+      "sha256": "0634a3a276a2e6787049a7600d711579d43d838fbabbb6db9e999c913a6a8b48"
+    },
+    {
+      "path": "src/adityacli/providers/duckduckgo.py",
+      "sha256": "5a868a2b0fe175ec55791036def93ab83d5aeae416c6f0355e8598a848b76021"
+    },
+    {
+      "path": "src/adityacli/services/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "src/adityacli/services/chat_service.py",
+      "sha256": "dd9b0bf1432358f8b6148510a16caa617d90905a1e81f5512442e582e346607a"
+    },
+    {
+      "path": "src/adityacli/services/command_service.py",
+      "sha256": "d07b9fdb8f27f1b7e977ff35f2ceaa419e0e6e4b8ed8a40c0530263ad36e49e1"
+    },
+    {
+      "path": "src/adityacli/services/llm_service.py",
+      "sha256": "3625aec535ff0ac8377f5f0594f3f841d6d1d721ba4ec1ae881407e5631475ca"
+    },
+    {
+      "path": "src/adityacli/services/overwrite_service.py",
+      "sha256": "390d8306466b43d720fb5b68af46141d742ba92643fa7ba458780928747bd5d9"
+    },
+    {
+      "path": "src/adityacli/tools/_search_worker.py",
+      "sha256": "156f2cb852158d7cc37137b4c06f5846c3e21d2493a7f3c2c09b962b60ef1a3a"
+    },
+    {
+      "path": "src/adityacli/tools/base.py",
+      "sha256": "9fd0726ae6b93e05580c5e7faaa492fa109c7a8ad4a9fe9d346368d5d0d237b7"
+    },
+    {
+      "path": "src/adityacli/tools/edit.py",
+      "sha256": "17095d29655cae46573a67a589036e6605a5a72bbc7d2c0e9aa345b0269f5d9b"
+    },
+    {
+      "path": "src/adityacli/tools/git.py",
+      "sha256": "0156677e3be851bc898386e0dc721465c74ca9ac3936c00cfc8845229316a2ad"
+    },
+    {
+      "path": "src/adityacli/tools/read.py",
+      "sha256": "c6d4bd563e1175d5dbb9e98ec6f4f8f73bc4cbb3424a382db1b2ca67fe761b73"
+    },
+    {
+      "path": "src/adityacli/tools/registry.py",
+      "sha256": "257644fb183ad5c5dfea6aefa3c97168c99e00f7ec3add765f96196d661dceab"
+    },
+    {
+      "path": "src/adityacli/tools/search.py",
+      "sha256": "ed5874d4f42ec1ffbf3bf3448db69bcd2662b7c33ab2012f05faca8ad4066da1"
+    },
+    {
+      "path": "src/adityacli/tools/web.py",
+      "sha256": "10f9beccc50d75f724134b92ee2252c3deadc218755182d549ca6fa5540d6f1b"
+    },
+    {
+      "path": "src/adityacli/tools/write.py",
+      "sha256": "acdf007abd7adbfcb5bb6a1a3b19c9711da4e6d440b7a27b10b2d3b23fc4e59a"
+    },
+    {
+      "path": "src/adityacli/ui/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "src/adityacli/ui/conversation.py",
+      "sha256": "d8fe6ae30ebe20f67e3faa81eefbc776fe2601174c7aa41f8e112971d894b0aa"
+    },
+    {
+      "path": "src/adityacli/ui/diff.py",
+      "sha256": "be117a2c5952944fba7c52d40722d1deaef0a7b0503b7dfce264398f26d946c9"
+    },
+    {
+      "path": "src/adityacli/ui/screens.py",
+      "sha256": "d6103bb78a948ee73a1042b28a68070088285a517f455ae3753ff8d5215c3143"
+    },
+    {
+      "path": "tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/test_audit_fixes.py",
+      "sha256": "9865a4bea091190314d2ff710882549751ba534a68d5b45381d2f9ceae3aef74"
+    },
+    {
+      "path": "tests/test_audit_regressions.py",
+      "sha256": "0058230f7f47187b20c03d95bcb5b66e45cfc4cec65a06547ff61c2acf29c528"
+    },
+    {
+      "path": "tests/test_file_manager.py",
+      "sha256": "8a4cf70f810734bfbd9bd2f965448f55d57c7108e2195c5fdfbd135d1cfd4533"
+    },
+    {
+      "path": "tests/test_memory_and_tools.py",
+      "sha256": "5eae2d5bde9956d56576ac315e689e6bcf22ea90ae31a41cc365dc13ad7aa70b"
+    },
+    {
+      "path": "tests/test_models.py",
+      "sha256": "45390c7e00b2cd0d4c1f558b3a1e558e625bb46843efe976ee0bb75a58c7c00e"
+    },
+    {
+      "path": "tests/test_parser.py",
+      "sha256": "629f8f00a9d53812ebd6aa37227443da1ec1cb67cbb6e26f4e76894f216b0442"
+    },
+    {
+      "path": "tests/test_registry.py",
+      "sha256": "9079c445bc5914eebcf0f63990dec8d718c60466b2384acfdbf4d3c0a3a621f1"
+    },
+    {
+      "path": "tests/test_response_parser.py",
+      "sha256": "87cf30ffa13d54c0c22b9f13c01bad34870108c41c719e30290a8766a6454d65"
+    },
+    {
+      "path": "tests/test_runtime.py",
+      "sha256": "d6a9c2dab5f3a49386ddc17b4b89e4086b77ed71477f06fd6c9cb7c4dc11d2f5"
+    },
+    {
+      "path": "tests/test_streaming.py",
+      "sha256": "d50e71919b6f7007999e52594d41ad6e7adefbbeb480aa1528dbcce1cbabbdac"
+    },
+    {
+      "path": "tests/test_tui.py",
+      "sha256": "163cf5bfb9acde8a3d413234d5bd14faaa7e203eb840d9b464f7d88eb7a815c0"
+    },
+    {
+      "path": "tests/test_ui_controls.py",
+      "sha256": "28a5420dd4a64ed8d6d283b4a3c414a5e75d09c0fc1570d23d882fe3ef207d62"
+    }
+  ],
+  "limitations": [
+    "LM Studio server connection refused; no live inference.",
+    "Linux/GitHub CI configured but not executed.",
+    "File locking coordinates cooperating writers; final external-editor race remains.",
+    "No comparative performance benchmark or power-loss test."
+  ]
+}

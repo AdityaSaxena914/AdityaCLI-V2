@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from pathlib import Path
 from typing import TypeAlias
 
 
@@ -21,6 +20,7 @@ class Tool(StrEnum):
     SEARCH = "search"
     WEB = "web"
     GIT = "git"
+    REMEMBER = "remember"
 
 
 @dataclass(slots=True)
@@ -49,13 +49,6 @@ class SearchResult:
     body: str
 
 
-@dataclass(slots=True)
-class Workspace:
-    """Workspace."""
-
-    root: Path
-
-
 # ---------------------------------------------------------------------------
 # Runtime results
 # ---------------------------------------------------------------------------
@@ -77,6 +70,7 @@ class OverwriteRequest:
     """
 
     files: dict[str, str]
+    expected_contents: dict[str, str | None] | None = None
 
 
 @dataclass(slots=True)

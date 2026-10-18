@@ -1,21 +1,9 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import override
 from adityacli.core.models import Message
 
-class BaseTokenCounter(ABC):
-    """Estimate token usage."""
 
-    @abstractmethod
-    def count_text(
-        self,
-        text: str,
-    ) -> int:
-        raise NotImplementedError
-
-
-class CharacterTokenCounter(BaseTokenCounter):
+class CharacterTokenCounter:
     """
     Deterministic approximation.
 
@@ -24,7 +12,6 @@ class CharacterTokenCounter(BaseTokenCounter):
 
     CHARS_PER_TOKEN: int = 4
 
-    @override
     def count_text(
         self,
         text: str,

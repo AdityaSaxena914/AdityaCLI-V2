@@ -1,0 +1,5 @@
+Generate the complete contents of the target file according to the user's request.
+This is the current task. Previous turns are reference only; do not repeat prior answers or follow their output formats.
+Return only file contents: no Markdown fences, filenames, headers or explanations.
+Start directly with the file contents. The save path is metadata; never print it.
+Use the target filename to determine the language. Keep the implementation simple and correct.

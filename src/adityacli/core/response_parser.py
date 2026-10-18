@@ -1,20 +1,12 @@
+import json
 import re
+from pathlib import Path
 
 from adityacli.exceptions import InvalidResponseError, MalformedGenerationError
 
 
-_FILE_HEADER = re.compile(
-    r"^=== FILE:\s*(.+?)\s*===\s*$",
-    re.MULTILINE,
-)
-
-_END_OF_FILE_SENTINEL = "=== END FILE ==="
-
-# Loop-detection: if the same N-line block repeats this many times
-# consecutively, treat it as a generation loop rather than intended
-# content (catches the repeated CSS/media-query symptom directly).
-_REPEAT_WINDOW_LINES = 6
-_REPEAT_THRESHOLD = 4
+_LEADING_HEADER = re.compile(r"\A=== FILE:[^\r\n]+===[ \t]*(?:\r?\n|$)")
+_PROSE_SUFFIXES = {".md", ".markdown", ".mdx", ".txt", ".rst"}
 
 
 class ResponseParser:
@@ -25,23 +17,19 @@ class ResponseParser:
         response: str,
         paths: list[str],
     ) -> dict[str, str]:
-        content = self._strip_sentinel(response)
-        content = self._strip_code_fence(content)
-        content = self._strip_file_header(content)
-        content = content.strip()
-
         if len(paths) != 1:
             raise InvalidResponseError(
                 "Multiple file generation is not yet supported."
             )
 
-        self._validate(content)
+        content = self._unwrap(response, paths[0])
+        self._validate(content, paths[0])
 
         return {
             paths[0]: content,
         }
 
-    def parse_edit_response(self, response: str) -> str:
+    def parse_edit_response(self, response: str, path: str | None = None) -> str:
         """
         Parse an /edit response.
 
@@ -49,102 +37,58 @@ class ResponseParser:
         complete updated file contents.
         """
 
-        content = self._strip_sentinel(response)
-        content = self._strip_code_fence(content)
-        content = self._strip_file_header(content)
-        content = content.strip()
-
-        if not content:
+        content = self._unwrap(response, path)
+        if not content.strip():
             raise InvalidResponseError(
                 "Empty response from the language model."
             )
 
-        self._validate(content)
+        self._validate(content, path)
 
         return content
 
-    @staticmethod
-    def _strip_sentinel(content: str) -> str:
-        return content.replace(_END_OF_FILE_SENTINEL, "").rstrip()
+    def _unwrap(self, content: str, path: str | None) -> str:
+        # Markdown fences and header-looking lines are legitimate prose.
+        if path is not None and Path(path).suffix.lower() in _PROSE_SUFFIXES:
+            return content
+        return self._strip_file_header(self._strip_code_fence(content))
 
     @staticmethod
     def _strip_code_fence(content: str) -> str:
         """
-        Remove a single outer Markdown code fence if present.
-
-        The opening fence line is dropped even when the closing fence
-        is missing (truncated generation) -- otherwise a truncated
-        response leaks a literal ```lang line into the written file.
+        Remove only a complete outer Markdown fence, preserving its body.
         """
-
-        content = content.strip()
 
         if not content.startswith("```"):
             return content
 
-        lines = content.splitlines()
-
-        if len(lines) < 2:
+        lines = content.splitlines(keepends=True)
+        if not re.fullmatch(r"```[\w.+-]*[ \t]*", lines[0].rstrip("\r\n")):
             return content
-
-        body = lines[1:]
-
-        if body and body[-1].strip().startswith("```"):
-            body = body[:-1]
-
-        return "\n".join(body).strip()
+        # Blank lines outside the closing fence are wrapper whitespace.
+        while len(lines) > 1 and not lines[-1].strip():
+            lines.pop()
+        if len(lines) < 2 or lines[-1].strip() != "```":
+            raise MalformedGenerationError("Unclosed Markdown fence in generated output.")
+        return "".join(lines[1:-1])
 
     @staticmethod
     def _strip_file_header(
         content: str,
     ) -> str:
-        content = re.sub(
-            r"^=== FILE:.*?===\s*\n?",
-            "",
-            content,
-            flags=re.MULTILINE,
-        )
-
-        return content.strip()
+        return _LEADING_HEADER.sub("", content, count=1)
 
     @staticmethod
-    def _validate(content: str) -> None:
-        if not content:
+    def _validate(content: str, path: str | None = None) -> None:
+        if not content.strip():
             raise MalformedGenerationError(
                 "Empty response from the language model."
             )
-
-        opens = content.count("{")
-        closes = content.count("}")
-
-        if opens != closes:
-            raise MalformedGenerationError(
-                f"Unbalanced braces ({opens} open / {closes} close) -- "
-                "generation is malformed or was cut mid-block."
-            )
-
-        lines = content.splitlines()
-        window = _REPEAT_WINDOW_LINES
-
-        i = 0
-        while i + window * _REPEAT_THRESHOLD <= len(lines):
-            block = tuple(lines[i : i + window])
-
-            repeat_count = 1
-            j = i + window
-
-            while (
-                j + window <= len(lines)
-                and tuple(lines[j : j + window]) == block
-            ):
-                repeat_count += 1
-                j += window
-
-            if repeat_count >= _REPEAT_THRESHOLD:
-                raise MalformedGenerationError(
-                    f"Detected a {repeat_count}x repeated {window}-line "
-                    f"block starting at line {i + 1} -- generation "
-                    "loop, rejecting output."
-                )
-
-            i += window
+        suffix = Path(path).suffix.lower() if path else ""
+        try:
+            if suffix == ".json":
+                json.loads(content)
+            elif suffix == ".py":
+                compile(content, path or "<generated>", "exec")
+        except (ValueError, SyntaxError) as exc:
+            raise MalformedGenerationError(f"Generated {suffix} file is invalid: {exc}") from exc

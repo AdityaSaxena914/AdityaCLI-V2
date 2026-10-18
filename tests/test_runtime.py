@@ -33,6 +33,7 @@ class FakeChatService:
         *,
         session: Session,
         text: str,
+        on_chunk=None,
     ) -> ChatServiceResult:
         del session
         del text

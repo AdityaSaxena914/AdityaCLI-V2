@@ -30,6 +30,7 @@ pip-wheel-metadata/
 
 .pytest_cache/
 .coverage
+.test-tmp-*/
 .coverage.*
 htmlcov/
 .pytest_cache/
@@ -156,6 +157,6 @@ yarn-error.log*
 
 private/
 *.ps1
-docs/
 *.txt
+!src/adityacli/prompts/*.txt
 *.sessions

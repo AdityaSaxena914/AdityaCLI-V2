@@ -23,7 +23,7 @@ class DuckDuckGoProvider(SearchProvider):
     ) -> list[SearchResult]:
         results: list[SearchResult] = []
 
-        with DDGS() as ddgs:  # pyright: ignore[reportAny]
+        with DDGS(timeout=5) as ddgs:  # pyright: ignore[reportAny]
             items = cast(
                 Iterable[DDGSResult],
                 ddgs.text( # pyright: ignore[reportAny]

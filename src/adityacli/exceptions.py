@@ -72,3 +72,11 @@ class MalformedGenerationError(InvalidResponseError):
 
 class ToolExecutionError(AdityaCLIError):
     """Raised when a deterministic tool fails during execution."""
+
+
+class OperationCancelled(AdityaCLIError):
+    """An operation was explicitly cancelled before completion."""
+
+
+class OperationTimeout(ToolExecutionError):
+    """An operation exceeded its total execution deadline."""

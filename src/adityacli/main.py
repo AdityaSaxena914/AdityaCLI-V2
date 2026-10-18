@@ -43,12 +43,18 @@ def main() -> None:
 
     config = AppConfig(
         workspace=WorkspaceConfig(
-            root=Path.cwd(),
+            root=Path.cwd().resolve(),
         ),
         lmstudio=LMStudioConfig(),
         security=SecurityConfig(),
     )
 
+    store = SessionStore(config.workspace.root)
+    with store.workspace_lease():
+        _run(config, store, args.continue_session)
+
+
+def _run(config: AppConfig, store: SessionStore, continue_session: bool) -> None:
     client = LLMClient(config.lmstudio)
 
     registry = ToolRegistry(
@@ -60,7 +66,6 @@ def main() -> None:
     response_parser = ResponseParser()
     prompt_builder = PromptBuilder()
 
-    store = SessionStore(config.workspace.root)
     file_manager = FileManager(config)
 
     command_service = CommandService(
@@ -90,14 +95,17 @@ def main() -> None:
         parser=parser_service,
         store=store,
         chat_service=chat_service,
-        continue_session=args.continue_session,  # pyright: ignore[reportAny]
+        continue_session=continue_session,
     )
 
     runtime.add_system_prompt(
         load_prompt("system")
     )
 
-    CLI(runtime).run()
+    try:
+        CLI(runtime, client).run()
+    finally:
+        client.close()
 
 
 if __name__ == "__main__":

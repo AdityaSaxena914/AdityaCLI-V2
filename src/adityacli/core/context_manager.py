@@ -16,19 +16,17 @@ class ContextManager:
         if self._counter.count_messages(messages) <= self._limit:
             return messages
 
-        result: list[Message] = []
-
-        if messages and messages[0].role is Role.SYSTEM:
-            result.append(messages[0])
-
-        remaining = messages[1:] if result else messages
-
-        for message in reversed(remaining):
-            candidate = [*result, message]
-
-            if self._counter.count_messages(candidate) > self._limit:
+        system = messages[:1] if messages and messages[0].role is Role.SYSTEM else []
+        used = self._counter.count_messages(system)
+        start = len(system)
+        selected: list[Message] = []
+        for message in reversed(messages[start:]):
+            tokens = self._counter.count_text(message.content)
+            if used + tokens > self._limit:
                 break
-
-            result.insert(1 if result else 0, message)
-
-        return result
+            used += tokens
+            selected.append(message)
+        selected.reverse()
+        while selected and selected[0].role is Role.ASSISTANT:
+            selected.pop(0)
+        return [*system, *selected]
